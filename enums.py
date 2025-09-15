@@ -71,14 +71,55 @@ class Ranks(Enum):
     Tekken_God = 27
     Tekken_God_Supreme = 28
     God_of_Destruction = 29
-    God_of_Destruction_Top = 100
+    God_of_Destruction_1 = 30
+    God_of_Destruction_2 = 31
+    God_of_Destruction_3 = 32
+    God_of_Destruction_4 = 33
+    God_of_Destruction_5 = 34
+    God_of_Destruction_6 = 35
+    God_of_Destruction_7 = 36
+    God_of_Destruction_Infinity = 1000
+    # This is probably wrong
 
     @classmethod
     def _missing_(cls, value):
-        return Ranks.God_of_Destruction
+        # If the rank is not a known value, more than likely GoD∞
+        return Ranks.God_of_Destruction_Infinity
 
 class BattleTypes(Enum):
     Quick_Match = 1
     Ranked_Match = 2
     Group_Match = 3
     Player_Match = 4
+
+class Regions(Enum):
+    Asia = 0
+    Middle_East = 1
+    Oceania = 2
+    America = 3
+    Europe = 4
+    Africa = 5
+
+class Platforms(Enum):
+    PC = 3
+    PlayStation = 8
+    Xbox = 9
+
+class Stages(Enum):
+    Arena = 100
+    Arena_Underground = 101
+    Urban_Square = 200
+    Urban_Square_Evening = 201
+    Yakushima = 300
+    Coliseum_of_Fate = 400
+    Rebel_Hangar = 500
+    Fallen_Destiny = 700
+    Descent_Into_Subconscious= 900
+    Sanctum = 1000
+    Into_the_Stratosphere = 1100
+    Ortiz_Farm = 1200
+    Celebration_On_The_Seine = 1300
+    Secluded_Training_Ground = 1400
+    Elegant_Palace = 1500
+    Midnight_Siege = 1600
+    # Need DLC Stages

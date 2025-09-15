@@ -1,10 +1,9 @@
 import requests, time, datetime, math, os, pandas as pd, gc
 from tqdm import trange, tqdm
-from enums import Characters
-from enums import BattleTypes
-from enums import Ranks
 from models import ReplayData
-from models import SimplifiedReplayData
+
+START_DATE = datetime.datetime(2025, 6, 1)
+END_DATE = datetime.datetime(2025,6, 2)
 
 MAX_REPLAY_THRESHOLD = 1_000_000
 MAX_RETRIES = 3
@@ -22,27 +21,28 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime):
     # Add 1 day to end_date since time is midnight
     end = math.trunc((end_date + datetime.timedelta(days=1)).timestamp())
     loops_required = math.ceil((end - start) / 700)
-    before = math.trunc(end)
+    before = math.trunc(end)    
+    tqdm.write(f'[Download] | Beginning download of {loops_required:,} sets of replays.')
     for i in trange(loops_required + 1, desc='Downloading Replay Sets', ncols=100, unit=' replay sets'):
         start_time = time.perf_counter()
 
         try:
             downloaded = download_replays(before)
         except Exception as e:
-            tqdm.write(f'Encountered an error while attempting to download set {i + 1} of {loops_required}, retrying.')
+            tqdm.write(f'[Download Error] {e} | Encountered an error while attempting to download set {i + 1} of {loops_required}, retrying.')
             attempts = 0
             while attempts < MAX_RETRIES:
                 downloaded = None
                 try:
                     time.sleep(1.005)
                     downloaded = download_replays(before)
-                    tqdm.write(f'Retry {attempts + 1} succeeded!')
+                    tqdm.write(f'[Download Error] | Retry {attempts + 1} succeeded, the set was succesfully downloaded, resuming normal operation.')
                     break
                 except Exception as e:
-                    tqdm.write(f'Retry {attempts + 1} failed, waiting 1 second and trying again.')
+                    tqdm.write(f'[Download Error] | Retry {attempts + 1} failed, waiting 1 second and trying again.')
                     attempts += 1
             else:
-                tqdm.write(f'All retry attempts failed for set {i + 1} of {loops_required} with before value {before}, and will not be included in the final output.')
+                tqdm.write(f'[Download Error] | All retry attempts failed for set {i + 1} of {loops_required} with before value {before}, and will not be included in the final output.')
             
             if downloaded:
                 replays.extend(downloaded)
@@ -66,43 +66,24 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime):
         save_replay_data_to_file(replays, start_date, end_date)
     
     return total_replays
-        
-def process_replay_data(replay_data: list[ReplayData]):
-    simplified_replay_data: list[SimplifiedReplayData] = []
-    while replay_data:
-        replay: ReplayData = replay_data.pop()
-        simplified_replay: SimplifiedReplayData = {
-            "battle_at": replay["battle_at"],
-            "battle_type": BattleTypes(replay["battle_type"]).name,
-            "p1_character": Characters(replay["p1_chara_id"]).name,
-            "p1_power": replay["p1_power"],
-            "p1_rank": replay["p1_rank"],
-            "p1_rank_name": Ranks(replay["p1_rank"]).name,
-            "p2_character": Characters(replay["p2_chara_id"]).name,
-            "p2_power": replay["p2_power"],
-            "p2_rank": replay["p2_rank"],
-            "p2_rank_name": Ranks(replay["p2_rank"]).name,
-            "winner": replay["winner"]
-        }
-        simplified_replay_data.append(simplified_replay)
-    return simplified_replay_data
 
 def save_replay_data_to_file(replay_data: list[ReplayData], start_date: datetime.datetime, end_date: datetime.datetime):
-    replays_df = pd.DataFrame(replay_data)
-    file_name = CSV_FILE_BASE_NAME + f'_{start_date.date()}--{(end_date).date()}.csv'
-    if not os.path.exists(file_name):
-        replays_df.to_csv(file_name, mode='a', header=True, index=False)
-    else:
-        replays_df.to_csv(file_name, mode='a', header=False, index=False)
-    
-    # In attempt to reduce memory leaks
-    del replays_df
-    gc.collect()
+    tqdm.write(f'[I/O] | Attempting to save {len(replay_data)} replays to file.')
+    try:
+        replays_df = pd.DataFrame(replay_data)
+        file_name = CSV_FILE_BASE_NAME + f'_{start_date.date()}--{(end_date).date()}.csv'
+        if not os.path.exists(file_name):
+            replays_df.to_csv(file_name, mode='a', header=True, index=False)
+        else:
+            replays_df.to_csv(file_name, mode='a', header=False, index=False)
+        
+        # In attempt to reduce memory leaks
+        del replays_df
+        gc.collect()
+    except Exception as e:
+        tqdm.write(f'[I/O Error] {e} | Failed to save replays to file, will download another set and try again.')
 
 if __name__ == '__main__':
     start_time = time.perf_counter()
-    start_date = datetime.datetime(2025, 6, 1)
-    end_date = datetime.datetime(2025,6, 2)
-
-    downloaded_replays = get_replay_data(start_date, end_date)
+    downloaded_replays = get_replay_data(START_DATE, END_DATE)
     tqdm.write(f'Finished gathering {downloaded_replays} replays in a total of {round(time.perf_counter() - start_time, 2)} seconds')

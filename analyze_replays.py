@@ -3,6 +3,11 @@ from tqdm import tqdm
 from tkinter import filedialog as fd
 from collections import defaultdict
 from scipy.stats import gmean
+from enums import Characters
+from enums import BattleTypes
+from enums import Ranks
+from models import ReplayData
+from models import SimplifiedReplayData
 
 REPLAY_FILE_PATH = 'replay_data.csv'
 
@@ -51,6 +56,26 @@ def calculate_win_rates(replay_data_dict):
     k = gmean(play_count_list)
 
     bayesian_score(mu, k, replay_data_dict)
+
+def process_replay_data(replay_data: list[ReplayData]):
+    simplified_replay_data: list[SimplifiedReplayData] = []
+    while replay_data:
+        replay: ReplayData = replay_data.pop()
+        simplified_replay: SimplifiedReplayData = {
+            "battle_at": replay["battle_at"],
+            "battle_type": BattleTypes(replay["battle_type"]).name,
+            "p1_character": Characters(replay["p1_chara_id"]).name,
+            "p1_power": replay["p1_power"],
+            "p1_rank": replay["p1_rank"],
+            "p1_rank_name": Ranks(replay["p1_rank"]).name,
+            "p2_character": Characters(replay["p2_chara_id"]).name,
+            "p2_power": replay["p2_power"],
+            "p2_rank": replay["p2_rank"],
+            "p2_rank_name": Ranks(replay["p2_rank"]).name,
+            "winner": replay["winner"]
+        }
+        simplified_replay_data.append(simplified_replay)
+    return simplified_replay_data
 
 if __name__ == '__main__':
     replay_file = fd.askopenfilename(title='Select Replay Data File', filetypes=(('CSV Files', '*.csv'),))
