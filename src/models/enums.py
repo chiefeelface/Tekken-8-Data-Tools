@@ -1,6 +1,12 @@
+"""
+Enum definitions for Tekken game data.
+"""
+
 from enum import Enum
 
+
 class Characters(Enum):
+    """Tekken 8 character IDs."""
     Paul = 0
     Law = 1
     King = 2
@@ -40,7 +46,9 @@ class Characters(Enum):
     Anna = 42
     Fahkumram = 43
 
+
 class Ranks(Enum):
+    """Tekken 8 rank system."""
     Beginner = 0
     First_Dan = 1
     Second_Dan = 2
@@ -79,20 +87,23 @@ class Ranks(Enum):
     God_of_Destruction_6 = 35
     God_of_Destruction_7 = 36
     God_of_Destruction_Infinity = 1000
-    # This is probably wrong
 
     @classmethod
     def _missing_(cls, value):
-        # If the rank is not a known value, more than likely GoD∞
+        """Handle unknown rank values (likely GoD∞)."""
         return Ranks.God_of_Destruction_Infinity
 
+
 class BattleTypes(Enum):
+    """Types of battles/matches."""
     Quick_Match = 1
     Ranked_Match = 2
     Group_Match = 3
     Player_Match = 4
 
+
 class Regions(Enum):
+    """Geographic regions."""
     Asia = 0
     Middle_East = 1
     Oceania = 2
@@ -100,13 +111,16 @@ class Regions(Enum):
     Europe = 4
     Africa = 5
 
-# Is this even used?
+
 class Platforms(Enum):
+    """Gaming platforms."""
     PC = 3
     PlayStation = 8
     Xbox = 9
 
+
 class Stages(Enum):
+    """Tekken 8 stages."""
     Arena = 100
     Arena_Underground = 101
     Urban_Square = 200
@@ -115,7 +129,7 @@ class Stages(Enum):
     Coliseum_of_Fate = 400
     Rebel_Hangar = 500
     Fallen_Destiny = 700
-    Descent_Into_Subconscious= 900
+    Descent_Into_Subconscious = 900
     Sanctum = 1000
     Into_the_Stratosphere = 1100
     Ortiz_Farm = 1200
@@ -123,13 +137,3 @@ class Stages(Enum):
     Secluded_Training_Ground = 1400
     Elegant_Palace = 1500
     Midnight_Siege = 1600
-    # Need DLC Stages
-
-if __name__ == '__main__':
-    sql_table_name, enum_to_convert = 'Characters', Characters
-    sql_table_columns = ('Id', 'Name')
-    sql_table_values = ', '.join(f'({member.value}, \'{member.name}\')' for member in enum_to_convert)
-
-    sql_insert_statement = f'insert into {sql_table_name} ({', '.join(sql_table_columns)}) values {sql_table_values};'
-
-    print(sql_insert_statement)

@@ -1,6 +1,12 @@
+"""
+Data models for replay data structures.
+"""
+
 from typing import TypedDict, Optional
 
+
 class ReplayData(TypedDict):
+    """Raw replay data structure from the API."""
     battle_at: int
     battle_id: str
     battle_type: int
@@ -32,7 +38,9 @@ class ReplayData(TypedDict):
     stage_id: int
     winner: int
 
+
 class SimplifiedReplayData(TypedDict):
+    """Simplified replay data for analysis."""
     battle_at: int
     battle_type: str
     p1_character: str
