@@ -1,7 +1,6 @@
-import requests, time, datetime, math, os, pandas as pd, gc
+import requests, time, datetime, math, os, pandas as pd, gc, sqlite3, enums
 from tqdm import trange, tqdm
 from models import ReplayData
-import sqlite3
 
 START_DATE = datetime.datetime(2025, 9, 1)
 END_DATE = datetime.datetime(2025, 9, 2)
@@ -25,7 +24,10 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime):
     # Add 1 day to end_date since time is midnight
     end = math.trunc((end_date + datetime.timedelta(days=1)).timestamp())
     loops_required = math.ceil((end - start) / 700)
-    before = math.trunc(end)    
+    before = math.trunc(end)
+    if USE_SQLITE:
+        create_tables(start_date, end_date)
+        fill_tables_for_enums(start_date, end_date)
     tqdm.write(f'[Download] | Beginning download of {loops_required:,} sets of replays.')
     for i in trange(loops_required + 1, desc='Downloading Replay Sets', ncols=100, unit=' replay sets'):
         start_time = time.perf_counter()
@@ -68,10 +70,6 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime):
         
     if replays:
         save_replay_data_to_file(replays, start_date, end_date)
-    
-    # TODO: Create mapping tables for the enums
-    if USE_SQLITE:
-        pass
 
     return total_replays
 
@@ -98,9 +96,100 @@ def save_replay_data_to_file(replay_data: list[ReplayData], start_date: datetime
     except Exception as e:
         tqdm.write(f'[I/O Error] {e} | Failed to save {len(replay_data):,} replays to file resuming normal execution.')
     else:
-        tqdm.write(f'[I/O] | Successfully saved {len(replay_data):,} replays to file')
+        tqdm.write(f'[I/O] | Successfully saved {len(replay_data):,} replays to file.')
+
+def create_tables(start_date: datetime.datetime, end_date: datetime.datetime):
+    file_name = DB_FILE_BASE_NAME + f'_{start_date.date()}_{(end_date).date()}.db'
+    # Ensure file exists
+    open(file_name, 'a').close()
+    tqdm.write('[I/O] | Attempting to generate tables with primary and foreign keys.')
+    try:
+        with sqlite3.connect(file_name) as connection:
+            cursor = connection.cursor()
+            # Enable foreign keys
+            cursor.execute('PRAGMA foreign_keys = ON;')
+
+            # Create main table
+            cursor.execute('''
+CREATE TABLE IF NOT EXISTS ReplayData (
+    battle_at INTEGER NOT NULL,
+    battle_id TEXT PRIMARY KEY,
+    battle_type INTEGER NOT NULL,
+    game_version INTEGER NOT NULL,
+
+    p1_area_id INTEGER,
+    p1_chara_id INTEGER NOT NULL,
+    p1_lang TEXT,
+    p1_name TEXT NOT NULL,
+    p1_polaris_id TEXT NOT NULL,
+    p1_power INTEGER NOT NULL,
+    p1_rank INTEGER NOT NULL,
+    p1_rating_before INTEGER,
+    p1_rating_change INTEGER,
+    p1_region_id INTEGER,
+    p1_rounds INTEGER NOT NULL,
+    p1_user_id INTEGER NOT NULL,
+
+    p2_area_id INTEGER,
+    p2_chara_id INTEGER NOT NULL,
+    p2_lang TEXT,
+    p2_name TEXT NOT NULL,
+    p2_polaris_id TEXT NOT NULL,
+    p2_power INTEGER NOT NULL,
+    p2_rank INTEGER NOT NULL,
+    p2_rating_before INTEGER,
+    p2_rating_change INTEGER,
+    p2_region_id INTEGER,
+    p2_rounds INTEGER NOT NULL,
+    p2_user_id INTEGER NOT NULL,
+
+    stage_id INTEGER NOT NULL,
+    winner INTEGER NOT NULL,
+
+    FOREIGN KEY (battle_type) REFERENCES BattleTypes(Id),
+    FOREIGN KEY (p1_chara_id) REFERENCES Characters(Id),
+    FOREIGN KEY (p2_chara_id) REFERENCES Characters(Id),
+    FOREIGN KEY (p1_region_id) REFERENCES Regions(Id),
+    FOREIGN KEY (p2_region_id) REFERENCES Regions(Id),
+    FOREIGN KEY (p1_rank) REFERENCES Ranks(Id),
+    FOREIGN KEY (p2_rank) REFERENCES Ranks(Id),
+    FOREIGN KEY (stage_id) REFERENCES Stages(Id)
+);
+''')
+            for table in ['BattleTypes', 'Characters', 'Regions', 'Ranks', 'Stages']:
+                cursor.execute(f'''
+CREATE TABLE IF NOT EXISTS {table} (
+    Id INTEGER PRIMARY KEY,
+    Name TEXT NOT NULL
+);
+''')
+    except Exception as e:
+        tqdm.write(f'[I/O Error] {e} | Failed to generate tables.')
+    else:
+        tqdm.write(f'[I/O] | Sucessfully generated tables.')
+
+def enum_to_dict(enum):
+    return [{'Id': member.value, 'Name': member.name} for member in enum]
+
+def fill_tables_for_enums(start_date: datetime.datetime, end_date: datetime.datetime):
+    file_name = DB_FILE_BASE_NAME + f'_{start_date.date()}_{(end_date).date()}.db'
+    # Ensure file exists
+    open(file_name, 'a').close()
+    tqdm.write(f'[I/O] | Attempting to populate helper tables.')
+    try:
+        with sqlite3.connect(file_name) as connection:
+            pd.DataFrame(enum_to_dict(enums.Characters)).to_sql('Characters', connection, if_exists='append', index=False)
+            pd.DataFrame(enum_to_dict(enums.Ranks)).to_sql('Ranks', connection, if_exists='append', index=False)
+            pd.DataFrame(enum_to_dict(enums.BattleTypes)).to_sql('BattleTypes', connection, if_exists='append', index=False)
+            pd.DataFrame(enum_to_dict(enums.Regions)).to_sql('Regions', connection, if_exists='append', index=False)
+            pd.DataFrame(enum_to_dict(enums.Stages)).to_sql('Stages', connection, if_exists='append', index=False)
+    except Exception as e:
+        tqdm.write(f'[I/O Error] {e} | Failed to populate helper tables.')
+    else:
+        tqdm.write(f'[I/O] | Sucessfully populated helper tables.')
+
 
 if __name__ == '__main__':
     start_time = time.perf_counter()
     downloaded_replays = get_replay_data(START_DATE, END_DATE)
-    tqdm.write(f'[Download] | Finished gathering {downloaded_replays} replays in a total of {round(time.perf_counter() - start_time, 2):,} seconds')
+    tqdm.write(f'[Download] | Finished gathering {downloaded_replays:,} replays in a total of {round(time.perf_counter() - start_time, 2):,} seconds')

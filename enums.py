@@ -100,6 +100,7 @@ class Regions(Enum):
     Europe = 4
     Africa = 5
 
+# Is this even used?
 class Platforms(Enum):
     PC = 3
     PlayStation = 8

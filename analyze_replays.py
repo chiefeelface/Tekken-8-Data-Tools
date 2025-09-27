@@ -99,7 +99,7 @@ if __name__ == '__main__':
     with open(replay_file, mode='r', newline='', encoding='utf-8') as file:
         reader = csv.DictReader(file)
         for row in tqdm(reader, desc='Replays Analyzed', unit=' replays', mininterval=0.2):
-            processed = process_one_replay(row)
+            processed = process_one_replay(row) # type: ignore
             if processed['winner'] == '1':
                 replay_data_dict[processed['p1_character']]['wins'] += 1
                 replay_data_dict[processed['p2_character']]['losses'] += 1
