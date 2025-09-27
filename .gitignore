@@ -1,2 +1,5 @@
 # Dont include results in repo
 /downloaded_replays
+
+/.vscode
+/__pycache__

@@ -123,3 +123,12 @@ class Stages(Enum):
     Elegant_Palace = 1500
     Midnight_Siege = 1600
     # Need DLC Stages
+
+if __name__ == '__main__':
+    sql_table_name, enum_to_convert = 'Characters', Characters
+    sql_table_columns = ('Id', 'Name')
+    sql_table_values = ', '.join(f'({member.value}, \'{member.name}\')' for member in enum_to_convert)
+
+    sql_insert_statement = f'insert into {sql_table_name} ({', '.join(sql_table_columns)}) values {sql_table_values};'
+
+    print(sql_insert_statement)

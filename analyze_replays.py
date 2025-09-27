@@ -77,6 +77,21 @@ def process_replay_data(replay_data: list[ReplayData]):
         simplified_replay_data.append(simplified_replay)
     return simplified_replay_data
 
+def process_one_replay(replay: ReplayData) -> SimplifiedReplayData:
+    return {
+        "battle_at": replay["battle_at"],
+        "battle_type": BattleTypes(int(replay["battle_type"])).name,
+        "p1_character": Characters(int(replay["p1_chara_id"])).name,
+        "p1_power": replay["p1_power"],
+        "p1_rank": replay["p1_rank"],
+        "p1_rank_name": Ranks(int(replay["p1_rank"])).name,
+        "p2_character": Characters(int(replay["p2_chara_id"])).name,
+        "p2_power": replay["p2_power"],
+        "p2_rank": replay["p2_rank"],
+        "p2_rank_name": Ranks(int(replay["p2_rank"])).name,
+        "winner": replay["winner"]
+    }
+
 if __name__ == '__main__':
     replay_file = fd.askopenfilename(title='Select Replay Data File', filetypes=(('CSV Files', '*.csv'),))
     replay_data_dict = defaultdict(lambda: {'wins': 0, 'losses': 0, 'win_rate': 0.0, 'win_rate_wilson': 0.0, 'win_rate_bayesian': 0.0})
@@ -84,12 +99,13 @@ if __name__ == '__main__':
     with open(replay_file, mode='r', newline='', encoding='utf-8') as file:
         reader = csv.DictReader(file)
         for row in tqdm(reader, desc='Replays Analyzed', unit=' replays', mininterval=0.2):
-            if row['winner'] == '1':
-                replay_data_dict[row['p1_character']]['wins'] += 1
-                replay_data_dict[row['p2_character']]['losses'] += 1
-            elif row['winner'] == '2':
-                replay_data_dict[row['p2_character']]['wins'] += 1
-                replay_data_dict[row['p1_character']]['losses'] += 1
+            processed = process_one_replay(row)
+            if processed['winner'] == '1':
+                replay_data_dict[processed['p1_character']]['wins'] += 1
+                replay_data_dict[processed['p2_character']]['losses'] += 1
+            elif processed['winner'] == '2':
+                replay_data_dict[processed['p2_character']]['wins'] += 1
+                replay_data_dict[processed['p1_character']]['losses'] += 1
     
     calculate_win_rates(replay_data_dict)
 
