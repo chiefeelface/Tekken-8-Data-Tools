@@ -21,17 +21,24 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime):
     total_replays: int = 0
     replays: list[ReplayData] = []
     start = math.trunc(start_date.timestamp())
-    # Add 1 day to end_date since time is midnight
-    end = math.trunc((end_date + datetime.timedelta(days=1)).timestamp())
+    # Add 1 day and subtract 1 millisecond to end_date since time is midnight
+    end = math.trunc((end_date + datetime.timedelta(days=1) - datetime.timedelta(seconds=1)).timestamp())
+    now = datetime.datetime.now(datetime.timezone.utc).timestamp()
+    if end > now:
+        tqdm.write('[Download] | End date has not happened yet, setting to the current time.')
+        end = now
     loops_required = math.ceil((end - start) / 700)
-    before = math.trunc(end)
+    before = start
     if USE_SQLITE:
         create_tables(start_date, end_date)
         fill_tables_for_enums(start_date, end_date)
     tqdm.write(f'[Download] | Beginning download of {loops_required:,} sets of replays.')
-    for i in trange(loops_required + 1, desc='Downloading Replay Sets', ncols=100, unit=' replay sets'):
-        try:
+    loops = 0
+    with tqdm(total=loops_required + 1, desc='Downloading Replay Sets', ncols=100, unit=' replay sets') as progress:
+        while before < end:
             start_time = time.perf_counter()
+
+            before += 700
 
             try:
                 downloaded = download_replays(before)
@@ -41,7 +48,7 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime):
                 save_replay_data_to_file(replays, start_date, end_date)
                 return total_replays
             except Exception as e:
-                tqdm.write(f'[Download Error] {e} | Encountered an error while attempting to download set {i + 1} of {loops_required:,}, retrying.')
+                tqdm.write(f'[Download Error] {e} | Encountered an error while attempting to download set {loops + 1} of {loops_required:,}, retrying.')
                 attempts = 0
                 while attempts < MAX_RETRIES:
                     downloaded = None
@@ -54,37 +61,30 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime):
                         tqdm.write(f'[Download Error] | Retry {attempts + 1} failed, waiting 1 second and trying again.')
                         attempts += 1
                 else:
-                    tqdm.write(f'[Download Error] | All retry attempts failed for set {i + 1} of {loops_required:,} with before value {before}, and will not be included in the final output.')
+                    tqdm.write(f'[Download Error] | All retry attempts failed for set {loops + 1} of {loops_required:,} with before value {before}, and will not be included in the final output.')
                 
                 if downloaded:
                     replays.extend(downloaded)
                     total_replays += len(downloaded)
                     del downloaded [:]
-                before -= 700
                 time.sleep(1.005)
                 continue
             
             replays.extend(downloaded)
             total_replays += len(downloaded)
             del downloaded [:]
-            before -= 700
             if len(replays) > MAX_REPLAY_THRESHOLD:
                 save_replay_data_to_file(replays, start_date, end_date)
                 del replays[:]
             
+            loops += 1
+            progress.update(1)
             elapsed_time = time.perf_counter() - start_time 
             if elapsed_time - 0.005 < 1:
                 time.sleep(1 - elapsed_time + 0.005)
-        except KeyboardInterrupt:
-            tqdm.write(f'[Download] | Execution cancelled by user.')
-            if downloaded:
-                replays.extend(downloaded)
-                total_replays += len(downloaded)
+            
+        if replays:
             save_replay_data_to_file(replays, start_date, end_date)
-            return total_replays
-        
-    if replays:
-        save_replay_data_to_file(replays, start_date, end_date)
 
     return total_replays
 
