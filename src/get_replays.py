@@ -1,6 +1,6 @@
-import requests, time, datetime, math, os, pandas as pd, gc, sqlite3, enums
+import requests, time, datetime, math, os, pandas as pd, gc, sqlite3, src.enums as enums
 from tqdm import trange, tqdm
-from models import ReplayData
+from src.models import ReplayData
 
 START_DATE = datetime.datetime(2025, 9, 1)
 END_DATE = datetime.datetime(2025, 9, 2)
@@ -12,7 +12,7 @@ CSV_FILE_BASE_NAME = DB_FILE_BASE_NAME = 'downloaded_replays/replay_data'
 USE_SQLITE = True
 SQLITE_TABLE_NAME = 'ReplayData'
 
-def download_replays(before: int):
+def download_replays(before: int) -> list[ReplayData]:
     request = f'https://wank.wavu.wiki/api/replays?before={before}'
     replay_data = requests.get(request).json()
     return replay_data
@@ -30,43 +30,58 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime):
         fill_tables_for_enums(start_date, end_date)
     tqdm.write(f'[Download] | Beginning download of {loops_required:,} sets of replays.')
     for i in trange(loops_required + 1, desc='Downloading Replay Sets', ncols=100, unit=' replay sets'):
-        start_time = time.perf_counter()
-
         try:
-            downloaded = download_replays(before)
-        except Exception as e:
-            tqdm.write(f'[Download Error] {e} | Encountered an error while attempting to download set {i + 1} of {loops_required:,}, retrying.')
-            attempts = 0
-            while attempts < MAX_RETRIES:
-                downloaded = None
-                try:
-                    time.sleep(1.005)
-                    downloaded = download_replays(before)
-                    tqdm.write(f'[Download Error] | Retry {attempts + 1} succeeded, the set was succesfully downloaded, resuming normal operation.')
-                    break
-                except Exception as e:
-                    tqdm.write(f'[Download Error] | Retry {attempts + 1} failed, waiting 1 second and trying again.')
-                    attempts += 1
-            else:
-                tqdm.write(f'[Download Error] | All retry attempts failed for set {i + 1} of {loops_required:,} with before value {before}, and will not be included in the final output.')
+            start_time = time.perf_counter()
+
+            try:
+                downloaded = download_replays(before)
+            except KeyboardInterrupt:
+                tqdm.write(f'[Download] | Execution cancelled by user.')
+                total_replays += len(replays)
+                save_replay_data_to_file(replays, start_date, end_date)
+                return total_replays
+            except Exception as e:
+                tqdm.write(f'[Download Error] {e} | Encountered an error while attempting to download set {i + 1} of {loops_required:,}, retrying.')
+                attempts = 0
+                while attempts < MAX_RETRIES:
+                    downloaded = None
+                    try:
+                        time.sleep(1.005)
+                        downloaded = download_replays(before)
+                        tqdm.write(f'[Download Error] | Retry {attempts + 1} succeeded, the set was succesfully downloaded, resuming normal operation.')
+                        break
+                    except Exception as e:
+                        tqdm.write(f'[Download Error] | Retry {attempts + 1} failed, waiting 1 second and trying again.')
+                        attempts += 1
+                else:
+                    tqdm.write(f'[Download Error] | All retry attempts failed for set {i + 1} of {loops_required:,} with before value {before}, and will not be included in the final output.')
+                
+                if downloaded:
+                    replays.extend(downloaded)
+                    total_replays += len(downloaded)
+                    del downloaded [:]
+                before -= 700
+                time.sleep(1.005)
+                continue
             
+            replays.extend(downloaded)
+            total_replays += len(downloaded)
+            del downloaded [:]
+            before -= 700
+            if len(replays) > MAX_REPLAY_THRESHOLD:
+                save_replay_data_to_file(replays, start_date, end_date)
+                del replays[:]
+            
+            elapsed_time = time.perf_counter() - start_time 
+            if elapsed_time - 0.005 < 1:
+                time.sleep(1 - elapsed_time + 0.005)
+        except KeyboardInterrupt:
+            tqdm.write(f'[Download] | Execution cancelled by user.')
             if downloaded:
                 replays.extend(downloaded)
                 total_replays += len(downloaded)
-            before -= 700
-            time.sleep(1.005)
-            continue
-        
-        replays.extend(downloaded)
-        total_replays += len(downloaded)
-        before -= 700
-        if len(replays) > MAX_REPLAY_THRESHOLD:
             save_replay_data_to_file(replays, start_date, end_date)
-            del replays[:]
-        
-        elapsed_time = time.perf_counter() - start_time 
-        if elapsed_time - 0.005 < 1:
-            time.sleep(1 - elapsed_time + 0.005)
+            return total_replays
         
     if replays:
         save_replay_data_to_file(replays, start_date, end_date)
@@ -187,7 +202,6 @@ def fill_tables_for_enums(start_date: datetime.datetime, end_date: datetime.date
         tqdm.write(f'[I/O Error] {e} | Failed to populate helper tables.')
     else:
         tqdm.write(f'[I/O] | Sucessfully populated helper tables.')
-
 
 if __name__ == '__main__':
     start_time = time.perf_counter()

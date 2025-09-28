@@ -3,11 +3,11 @@ from tqdm import tqdm
 from tkinter import filedialog as fd
 from collections import defaultdict
 from scipy.stats import gmean
-from enums import Characters
-from enums import BattleTypes
-from enums import Ranks
-from models import ReplayData
-from models import SimplifiedReplayData
+from src.enums import Characters
+from src.enums import BattleTypes
+from src.enums import Ranks
+from src.models import ReplayData
+from src.models import SimplifiedReplayData
 
 REPLAY_FILE_PATH = 'replay_data.csv'
 
