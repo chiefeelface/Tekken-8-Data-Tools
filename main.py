@@ -35,6 +35,6 @@ def main():
         print(f'[Download] | Finished gathering {downloaded_replays:,} replays in a total of {round(time.perf_counter() - start_time, 2):,} seconds')
     else:
         raise(NotImplementedError('Analyzing replays is not currently implemented yet'))
-    pass
+
 if __name__ == '__main__':
     main()
