@@ -99,10 +99,9 @@ def save_replay_data_to_file(replay_data: list[ReplayData], start_date: datetime
     tqdm.write(f'[I/O] | Attempting to save {len(replay_data):,} replays to file.')
     try:
         replays_df = pd.DataFrame(replay_data)
+        create_replay_dir()
         if use_sql:
             file_name = config.DB_FILE_BASE_NAME + f'_{start_date.date()}_{(end_date).date()}.db'
-            # Ensure file exists
-            open(file_name, 'a').close()
             with sqlite3.connect(file_name) as connection:
                 replays_df.to_sql(config.SQLITE_TABLE_NAME, connection, if_exists='append', index=False)
         else:

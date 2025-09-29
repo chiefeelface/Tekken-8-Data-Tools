@@ -1,6 +1,7 @@
 MAX_REPLAY_THRESHOLD = 1_000_000
 MAX_RETRIES = 3
-CSV_FILE_BASE_NAME = DB_FILE_BASE_NAME = 'downloaded_replays/replay_data'
+REPLAY_DIR = 'downloaded_replays'
+CSV_FILE_BASE_NAME = DB_FILE_BASE_NAME = REPLAY_DIR + '/replay_data'
 
 USE_SQLITE = True
 SQLITE_TABLE_NAME = 'ReplayData'
