@@ -9,7 +9,7 @@ from src.enums import Ranks
 from src.models import ReplayData
 from src.models import SimplifiedReplayData
 
-REPLAY_FILE_PATH = 'replay_data.csv'
+# TODO: Rework this file for both CSV and SQLite db files
 
 def get_sorted_data(data, metric_func, value_func=None, reverse=True):
     sorted_data = sorted(data.items(), key=lambda item: metric_func(item[1]), reverse=reverse)

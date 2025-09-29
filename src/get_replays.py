@@ -27,11 +27,11 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime, 
             tqdm.write(f'[I/O Error] {e} | Failed to generate tables.')
         else:
             tqdm.write(f'[I/O] | Sucessfully generated tables.')
-        tqdm.write(f'[I/O] | Attempting to populate helper tables.')
-        if e := fill_tables_for_enums(start_date, end_date) != None:
-            tqdm.write(f'[I/O Error] {e} | Failed to populate helper tables.')
+        tqdm.write(f'[I/O] | Attempting to populate lookup tables.')
+        if e := populate_lookup_tables(start_date, end_date) != None:
+            tqdm.write(f'[I/O Error] {e} | Failed to populate lookup tables.')
         else:
-            tqdm.write(f'[I/O] | Sucessfully populated helper tables.')
+            tqdm.write(f'[I/O] | Sucessfully populated lookup tables.')
 
     loops_required = math.ceil((end - start) / 700)
     loops = 0

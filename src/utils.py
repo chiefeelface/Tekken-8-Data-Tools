@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS {table} (
 def enum_to_dict(enum):
     return [{'Id': member.value, 'Name': member.name} for member in enum]
 
-def fill_tables_for_enums(start_date: datetime.datetime, end_date: datetime.datetime):
+def populate_lookup_tables(start_date: datetime.datetime, end_date: datetime.datetime):
     file_name = config.DB_FILE_BASE_NAME + f'_{start_date.date()}_{(end_date).date()}.db'
     create_replay_dir()
     # Ensure file exists

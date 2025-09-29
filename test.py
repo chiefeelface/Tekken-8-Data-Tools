@@ -23,7 +23,7 @@ class Test(unittest.TestCase):
         start, end = datetime.datetime(1970, 1, 1), datetime.datetime(1970, 1, 2)
         failed = None
         try:
-            self.assertEqual(fill_tables_for_enums(start, end), None)
+            self.assertEqual(populate_lookup_tables(start, end), None)
         except Exception as e:
             failed = e
         # Cleanup
