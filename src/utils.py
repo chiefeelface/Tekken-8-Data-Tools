@@ -1,5 +1,9 @@
-import requests, datetime, sqlite3, src.config as config, pandas as pd, src.enums as enums
+import requests, datetime, sqlite3, src.config as config, pandas as pd, src.enums as enums, os
 from src.models import ReplayData
+
+def create_replay_dir():
+    if not os.path.exists(config.REPLAY_DIR):
+        os.makedirs(os.path.dirname(config.REPLAY_DIR))
 
 def download_replays(before: int) -> list[ReplayData]:
     request = f'https://wank.wavu.wiki/api/replays?before={before}'
@@ -8,6 +12,7 @@ def download_replays(before: int) -> list[ReplayData]:
 
 def create_tables(start_date: datetime.datetime, end_date: datetime.datetime):
     file_name = config.DB_FILE_BASE_NAME + f'_{start_date.date()}_{(end_date).date()}.db'
+    create_replay_dir()
     # Ensure file exists
     open(file_name, 'a').close()
     try:
@@ -79,6 +84,7 @@ def enum_to_dict(enum):
 
 def fill_tables_for_enums(start_date: datetime.datetime, end_date: datetime.datetime):
     file_name = config.DB_FILE_BASE_NAME + f'_{start_date.date()}_{(end_date).date()}.db'
+    create_replay_dir()
     # Ensure file exists
     open(file_name, 'a').close()
     try:
