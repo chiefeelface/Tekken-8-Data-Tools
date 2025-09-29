@@ -3,7 +3,7 @@ from src.models import ReplayData
 
 def create_replay_dir():
     if not os.path.exists(config.REPLAY_DIR):
-        os.makedirs(os.path.dirname(config.REPLAY_DIR))
+        os.makedirs(config.REPLAY_DIR)
 
 def download_replays(before: int) -> list[ReplayData]:
     request = f'https://wank.wavu.wiki/api/replays?before={before}'
