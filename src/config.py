@@ -4,9 +4,12 @@ REPLAY_DIR = 'downloaded_replays'
 CSV_FILE_BASE_NAME = DB_FILE_BASE_NAME = REPLAY_DIR + '/replay_data'
 
 USE_SQLITE = True
-SQLITE_TABLE_NAME = 'ReplayData'
-BATTLETYPES_TABLE_NAME = 'BattleTypes'
-CHARACTERS_TABLE_NAME = 'Characters'
-REGIONS_TABLE_NAME = 'Regions'
-RANKS_TABLE_NAME = 'Ranks'
-STAGES_TABLE_NAME = 'Stages'
+QUERY_FOLDER_PATH = 'queries/'
+
+class Tables:
+    ReplayData = 'ReplayData'
+    BattleTypes = 'BattleTypes'
+    Characters = 'Characters'
+    Regions = 'Regions'
+    Ranks = 'Ranks'
+    Stages = 'Stages'

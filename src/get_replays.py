@@ -7,6 +7,7 @@ START_DATE = datetime.datetime(2025, 9, 1).replace(tzinfo=datetime.timezone.utc)
 END_DATE = datetime.datetime(2025, 9, 2).replace(tzinfo=datetime.timezone.utc)
 
 def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime, use_sql: bool):
+    timer = Timer()
     total_replays: int = 0
     replays: list[ReplayData] = []
 
@@ -19,26 +20,34 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime, 
     before = start
 
     if use_sql:
+        timer.start()
         if os.path.exists(config.DB_FILE_BASE_NAME + f'_{start_date.date()}_{end_date.date()}.db'):
-            tqdm.write('[I/O] | Deleting duplicate database file.')
-            os.remove(config.DB_FILE_BASE_NAME + f'_{start_date.date()}_{end_date.date()}.db')
+            tqdm.write('[I/O] | Attempting to delete duplicate database file.')
+            try:
+                os.remove(config.DB_FILE_BASE_NAME + f'_{start_date.date()}_{end_date.date()}.db')
+            except Exception as e:
+                tqdm.write(f'[I/O Error] {e} | Failed to  delete duplicate database file. [{timer.stop_get_elapsed_reset():,.2f}s]')
+            else:
+                tqdm.write(f'[I/O] | Succesfully deleted duplicate database file. [{timer.stop_get_elapsed_reset():,.2f}s]')
+        timer.start()
         tqdm.write('[I/O] | Attempting to create tables with primary and foreign keys.')
         if e := create_tables(start_date, end_date) != None:
-            tqdm.write(f'[I/O Error] {e} | Failed to create tables.')
+            tqdm.write(f'[I/O Error] {e} | Failed to create tables. [{timer.stop_get_elapsed_reset():,.2f}s]')
         else:
-            tqdm.write(f'[I/O] | Sucessfully created tables.')
+            tqdm.write(f'[I/O] | Sucessfully created tables. [{timer.stop_get_elapsed_reset():,.2f}s]')
+        timer.start()
         tqdm.write(f'[I/O] | Attempting to populate lookup tables.')
         if e := populate_lookup_tables(start_date, end_date) != None:
-            tqdm.write(f'[I/O Error] {e} | Failed to populate lookup tables.')
+            tqdm.write(f'[I/O Error] {e} | Failed to populate lookup tables. [{timer.stop_get_elapsed_reset():,.2f}s]')
         else:
-            tqdm.write(f'[I/O] | Sucessfully populated lookup tables.')
+            tqdm.write(f'[I/O] | Sucessfully populated lookup tables. [{timer.stop_get_elapsed_reset():,.2f}s]')
 
     loops_required = math.ceil((end - start) / 700)
     loops = 0
-    tqdm.write(f'[Download] | Beginning download of {loops_required:,} sets of replays.')
+    tqdm.write(f'[Download] | Beginning download of {loops_required :,} sets of replays.')
     
     try:
-        with tqdm(total=loops_required + 1, desc='[Download]', ncols=100, unit=' replay sets') as progress:
+        with tqdm(total=loops_required, desc='[Download]', ncols=100, unit='replay set') as progress:
             while before < end:
                 start_time = time.perf_counter()
 
@@ -96,30 +105,34 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime, 
     return total_replays
 
 def save_replay_data_to_file(replay_data: list[ReplayData], start_date: datetime.datetime, end_date: datetime.datetime, use_sql: bool, use_indexes: bool=False):
+    timer = Timer()
     tqdm.write(f'[I/O] | Attempting to save {len(replay_data):,} replays to file.')
     try:
+        timer.start()
         replays_df = pd.DataFrame(replay_data)
         create_replay_dir()
         if use_sql:
             file_name = config.DB_FILE_BASE_NAME + f'_{start_date.date()}_{(end_date).date()}.db'
             with sqlite3.connect(file_name) as connection:
-                replays_df.to_sql(config.SQLITE_TABLE_NAME, connection, if_exists='append', index=False)
-                tqdm.write(f'[I/O] | Successfully saved {len(replay_data):,} replays to file.')
-                tqdm.write(f'[I/O] | Attempting to create indexes.')
+                replays_df.to_sql(config.Tables.ReplayData, connection, if_exists='append', index=False)
+                tqdm.write(f'[I/O] | Successfully saved {len(replay_data):,} replays to file. [{timer.stop_get_elapsed_reset():,.2f}s]')
                 if use_indexes:
+                    timer.start()
+                    tqdm.write(f'[I/O] | Attempting to create indexes.')
                     if e := create_indexes(start_date, end_date) != None:
-                        tqdm.write(f'[I/O Error] {e} | Failed to create indexes.')
+                        tqdm.write(f'[I/O Error] {e} | Failed to create indexes. [{timer.stop_get_elapsed_reset():,.2f}s]')
                     else:
-                        tqdm.write(f'[I/O] | Successfully created indexes.')
+                        tqdm.write(f'[I/O] | Successfully created indexes. [{timer.stop_get_elapsed_reset():,.2f}s]')
         else:
             file_name = config.CSV_FILE_BASE_NAME + f'_{start_date.date()}_{(end_date).date()}.csv'
             if not os.path.exists(file_name):
                 replays_df.to_csv(file_name, mode='a', header=True, index=False)
             else:
                 replays_df.to_csv(file_name, mode='a', header=False, index=False)
+            tqdm.write(f'[I/O] | Successfully saved {len(replay_data):,} replays to file. [{timer.stop_get_elapsed_reset():,.2f}s]')
         
     except Exception as e:
-        tqdm.write(f'[I/O Error] {e} | Failed to save {len(replay_data):,} replays to file resuming normal execution.')
+        tqdm.write(f'[I/O Error] {e} | Failed to save {len(replay_data):,} replays to file, resuming normal execution. [{timer.stop_get_elapsed_reset():,.2f}s]')
     
     # In attempt to reduce memory leaks
     try:
@@ -131,4 +144,4 @@ def save_replay_data_to_file(replay_data: list[ReplayData], start_date: datetime
 if __name__ == '__main__':
     start_time = time.perf_counter()
     downloaded_replays = get_replay_data(START_DATE, END_DATE, False)
-    tqdm.write(f'[Download] | Finished gathering {downloaded_replays:,} replays in a total of {round(time.perf_counter() - start_time, 2):,} seconds')
+    tqdm.write(f'[Download] | Finished gathering {downloaded_replays:,} replays in a total of {round(time.perf_counter() - start_time, 2):,.2f} seconds')

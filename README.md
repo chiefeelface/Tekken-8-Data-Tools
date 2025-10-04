@@ -41,13 +41,13 @@ Simply run the main file and follow the prompts
 python main.py
 ```
 
-If your terminal does not have a <span style="color:green">(.venv)</span> in front if the prompt, you will need to reactivate the virtual environment
+If your terminal does not have a (.venv) in front if the prompt, you will need to activate the virtual environment before running the file
 
 ```
 .\.venv\Scripts\activate
 ```
 
-If downloading replays, it will download around 700 seconds worth of replays every 1 second as per the Wavu Wank wiki [api](https://wank.wavu.wiki/api), so downloading a month of replays will take about an hour.
+If downloading replays, it will download 700 seconds worth of replays every 1 second as per the Wavu Wank wiki [api](https://wank.wavu.wiki/api), so downloading a month of replays will take about an hour.
 
 The replays will be saved intermittently once the total replays downloaded reaches 1,000,000 to the `downloaded_replays` folder, with numerous fail-safes to prevent any downloaded replays from being lost in the event of network failure or any other errors.
 

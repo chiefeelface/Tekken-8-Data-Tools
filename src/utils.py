@@ -1,5 +1,32 @@
-import requests, datetime, sqlite3, src.config as config, pandas as pd, src.enums as enums, os
+import requests, datetime, sqlite3, src.config as config, pandas as pd, src.enums as enums, os, time
 from src.models import ReplayData
+from typing import Literal
+
+class Timer:
+    def __init__(self) -> None:
+        self._start = None
+        self._end = None
+    
+    def start(self):
+        self._start = time.perf_counter()
+    
+    def stop(self):
+        self._end = time.perf_counter()
+
+    def reset(self):
+        self._start = None
+        self._end = None
+
+    def get_elapsed(self):
+        if self._start and self._end:
+            return self._end - self._start
+        return None
+
+    def stop_get_elapsed_reset(self, formatted: bool=False):
+        self.stop()
+        elapsed = self.get_elapsed() if not formatted else f'{self.get_elapsed():,.2f}s'
+        self.reset()
+        return elapsed
 
 def create_replay_dir():
     if not os.path.exists(config.REPLAY_DIR):
@@ -22,8 +49,8 @@ def create_tables(start_date: datetime.datetime, end_date: datetime.datetime):
             cursor.execute('PRAGMA foreign_keys = ON;')
 
             # Create main table
-            cursor.execute('''
-CREATE TABLE IF NOT EXISTS ReplayData (
+            cursor.execute(f'''
+CREATE TABLE IF NOT EXISTS {config.Tables.ReplayData} (
     battle_at INTEGER NOT NULL,
     battle_id TEXT PRIMARY KEY,
     battle_type INTEGER NOT NULL,
@@ -68,7 +95,7 @@ CREATE TABLE IF NOT EXISTS ReplayData (
     FOREIGN KEY (stage_id) REFERENCES Stages(Id)
 );
 ''')
-            for table in [config.BATTLETYPES_TABLE_NAME, config.CHARACTERS_TABLE_NAME, config.REGIONS_TABLE_NAME, config.RANKS_TABLE_NAME, config.STAGES_TABLE_NAME]:
+            for table in [config.Tables.BattleTypes, config.Tables.Characters, config.Tables.Regions, config.Tables.Ranks, config.Tables.Stages]:
                 cursor.execute(f'''
 CREATE TABLE IF NOT EXISTS {table} (
     Id INTEGER PRIMARY KEY,
@@ -92,18 +119,18 @@ def create_indexes(start_date: datetime.datetime, end_date: datetime.datetime):
             cursor = connection.cursor()
             indexes = [
                 {
-                    'name': f'idx_{config.SQLITE_TABLE_NAME.lower()}_p1_chara_id',
-                    'table': config.SQLITE_TABLE_NAME,
+                    'name': f'idx_{config.Tables.ReplayData.lower()}_p1_chara_id',
+                    'table': config.Tables.ReplayData,
                     'column': 'p1_chara_id'
                 },
                 {
-                    'name': f'idx_{config.SQLITE_TABLE_NAME.lower()}_p2_chara_id',
-                    'table': config.SQLITE_TABLE_NAME,
+                    'name': f'idx_{config.Tables.ReplayData.lower()}_p2_chara_id',
+                    'table': config.Tables.ReplayData,
                     'column': 'p2_chara_id'
                 },
                 {
-                    'name': f'idx_{config.SQLITE_TABLE_NAME.lower()}_winner',
-                    'table': config.SQLITE_TABLE_NAME,
+                    'name': f'idx_{config.Tables.ReplayData.lower()}_winner',
+                    'table': config.Tables.ReplayData,
                     'column': 'winner'
                 }
             ]
