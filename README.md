@@ -43,6 +43,6 @@ python main.py
 
 If downloading replays, it will download around 700 seconds worth of replays every 1 second as per the Wavu Wank wiki [api](https://wank.wavu.wiki/api), so downloading a month of replays will take about an hour.
 
-The replays will be saved intermittently once the total replays downloaded reaches 1,000,000 to the `downloaded_replays` folder, with numerous failsafes to prevent any downloaded replays from being lost in the event of network failure or any other errors.
+The replays will be saved intermittently once the total replays downloaded reaches 1,000,000 to the `downloaded_replays` folder, with numerous fail-safes to prevent any downloaded replays from being lost in the event of network failure or any other errors.
 
 If you choose to use a SQLite database file and know how to write SQL, there are lookup tables you can join on to get the names of characters, stages, etc. to make the data readable.

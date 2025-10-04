@@ -22,11 +22,11 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime, 
         if os.path.exists(config.DB_FILE_BASE_NAME + f'_{start_date.date()}_{end_date.date()}.db'):
             tqdm.write('[I/O] | Deleting duplicate database file.')
             os.remove(config.DB_FILE_BASE_NAME + f'_{start_date.date()}_{end_date.date()}.db')
-        tqdm.write('[I/O] | Attempting to generate tables with primary and foreign keys.')
+        tqdm.write('[I/O] | Attempting to create tables with primary and foreign keys.')
         if e := create_tables(start_date, end_date) != None:
-            tqdm.write(f'[I/O Error] {e} | Failed to generate tables.')
+            tqdm.write(f'[I/O Error] {e} | Failed to create tables.')
         else:
-            tqdm.write(f'[I/O] | Sucessfully generated tables.')
+            tqdm.write(f'[I/O] | Sucessfully created tables.')
         tqdm.write(f'[I/O] | Attempting to populate lookup tables.')
         if e := populate_lookup_tables(start_date, end_date) != None:
             tqdm.write(f'[I/O Error] {e} | Failed to populate lookup tables.')
@@ -83,11 +83,11 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime, 
                     time.sleep(1 - elapsed_time + 0.005)
                 
             if replays:
-                save_replay_data_to_file(replays, start_date, end_date, use_sql)
+                save_replay_data_to_file(replays, start_date, end_date, use_sql, True)
     except KeyboardInterrupt:
         tqdm.write('[Download] | Execution interrupted.')
         if replays:
-            save_replay_data_to_file(replays, start_date, end_date, use_sql)
+            save_replay_data_to_file(replays, start_date, end_date, use_sql, True)
         if downloaded:
             tqdm.write(f'[Download] | Replay set from before value {before} possibly lost.')
         return total_replays
@@ -95,7 +95,7 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime, 
 
     return total_replays
 
-def save_replay_data_to_file(replay_data: list[ReplayData], start_date: datetime.datetime, end_date: datetime.datetime, use_sql: bool):
+def save_replay_data_to_file(replay_data: list[ReplayData], start_date: datetime.datetime, end_date: datetime.datetime, use_sql: bool, use_indexes: bool=False):
     tqdm.write(f'[I/O] | Attempting to save {len(replay_data):,} replays to file.')
     try:
         replays_df = pd.DataFrame(replay_data)
@@ -104,6 +104,13 @@ def save_replay_data_to_file(replay_data: list[ReplayData], start_date: datetime
             file_name = config.DB_FILE_BASE_NAME + f'_{start_date.date()}_{(end_date).date()}.db'
             with sqlite3.connect(file_name) as connection:
                 replays_df.to_sql(config.SQLITE_TABLE_NAME, connection, if_exists='append', index=False)
+                tqdm.write(f'[I/O] | Successfully saved {len(replay_data):,} replays to file.')
+                tqdm.write(f'[I/O] | Attempting to create indexes.')
+                if use_indexes:
+                    if e := create_indexes(start_date, end_date) != None:
+                        tqdm.write(f'[I/O Error] {e} | Failed to create indexes.')
+                    else:
+                        tqdm.write(f'[I/O] | Successfully created indexes.')
         else:
             file_name = config.CSV_FILE_BASE_NAME + f'_{start_date.date()}_{(end_date).date()}.csv'
             if not os.path.exists(file_name):
@@ -111,13 +118,15 @@ def save_replay_data_to_file(replay_data: list[ReplayData], start_date: datetime
             else:
                 replays_df.to_csv(file_name, mode='a', header=False, index=False)
         
-        # In attempt to reduce memory leaks
-        del replays_df
-        gc.collect()
     except Exception as e:
         tqdm.write(f'[I/O Error] {e} | Failed to save {len(replay_data):,} replays to file resuming normal execution.')
-    else:
-        tqdm.write(f'[I/O] | Successfully saved {len(replay_data):,} replays to file.')
+    
+    # In attempt to reduce memory leaks
+    try:
+        del replays_df
+    except:
+        pass
+    gc.collect()
 
 if __name__ == '__main__':
     start_time = time.perf_counter()

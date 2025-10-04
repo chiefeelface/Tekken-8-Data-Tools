@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS ReplayData (
     FOREIGN KEY (stage_id) REFERENCES Stages(Id)
 );
 ''')
-            for table in ['BattleTypes', 'Characters', 'Regions', 'Ranks', 'Stages']:
+            for table in [config.BATTLETYPES_TABLE_NAME, config.CHARACTERS_TABLE_NAME, config.REGIONS_TABLE_NAME, config.RANKS_TABLE_NAME, config.STAGES_TABLE_NAME]:
                 cursor.execute(f'''
 CREATE TABLE IF NOT EXISTS {table} (
     Id INTEGER PRIMARY KEY,
@@ -79,7 +79,41 @@ CREATE TABLE IF NOT EXISTS {table} (
         return e
     return None
 
-def enum_to_dict(enum):
+def create_index(cursor: sqlite3.Cursor, index_name, table, column):
+    cursor.execute(f'CREATE INDEX IF NOT EXISTS {index_name} ON {table}({column});')
+
+def create_indexes(start_date: datetime.datetime, end_date: datetime.datetime):
+    file_name = config.DB_FILE_BASE_NAME + f'_{start_date.date()}_{(end_date).date()}.db'
+    create_replay_dir()
+    # Ensure file exists
+    open(file_name, 'a').close()
+    try:
+        with sqlite3.connect(file_name) as connection:
+            cursor = connection.cursor()
+            indexes = [
+                {
+                    'name': f'idx_{config.SQLITE_TABLE_NAME.lower()}_p1_chara_id',
+                    'table': config.SQLITE_TABLE_NAME,
+                    'column': 'p1_chara_id'
+                },
+                {
+                    'name': f'idx_{config.SQLITE_TABLE_NAME.lower()}_p2_chara_id',
+                    'table': config.SQLITE_TABLE_NAME,
+                    'column': 'p2_chara_id'
+                },
+                {
+                    'name': f'idx_{config.SQLITE_TABLE_NAME.lower()}_winner',
+                    'table': config.SQLITE_TABLE_NAME,
+                    'column': 'winner'
+                }
+            ]
+            for index in indexes:
+                create_index(cursor, index['name'], index['table'], index['column'])
+    except Exception as e:
+        return e
+    return None
+
+def _enum_to_dict(enum):
     return [{'Id': member.value, 'Name': member.name} for member in enum]
 
 def populate_lookup_tables(start_date: datetime.datetime, end_date: datetime.datetime):
@@ -89,11 +123,11 @@ def populate_lookup_tables(start_date: datetime.datetime, end_date: datetime.dat
     open(file_name, 'a').close()
     try:
         with sqlite3.connect(file_name) as connection:
-            pd.DataFrame(enum_to_dict(enums.Characters)).to_sql('Characters', connection, if_exists='append', index=False)
-            pd.DataFrame(enum_to_dict(enums.Ranks)).to_sql('Ranks', connection, if_exists='append', index=False)
-            pd.DataFrame(enum_to_dict(enums.BattleTypes)).to_sql('BattleTypes', connection, if_exists='append', index=False)
-            pd.DataFrame(enum_to_dict(enums.Regions)).to_sql('Regions', connection, if_exists='append', index=False)
-            pd.DataFrame(enum_to_dict(enums.Stages)).to_sql('Stages', connection, if_exists='append', index=False)
+            pd.DataFrame(_enum_to_dict(enums.Characters)).to_sql('Characters', connection, if_exists='append', index=False)
+            pd.DataFrame(_enum_to_dict(enums.Ranks)).to_sql('Ranks', connection, if_exists='append', index=False)
+            pd.DataFrame(_enum_to_dict(enums.BattleTypes)).to_sql('BattleTypes', connection, if_exists='append', index=False)
+            pd.DataFrame(_enum_to_dict(enums.Regions)).to_sql('Regions', connection, if_exists='append', index=False)
+            pd.DataFrame(_enum_to_dict(enums.Stages)).to_sql('Stages', connection, if_exists='append', index=False)
     except Exception as e:
         return e
     return None
