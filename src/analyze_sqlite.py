@@ -1,12 +1,12 @@
-import sqlite3, tkinter as tk, src.config as config, pandas as pd
+import sqlite3, tkinter as tk, src.config as config, pandas as pd, numpy as np
 from tkinter import filedialog as fd
 from pathlib import Path
 from src.utils import *
 from src.enums import *
 
-def get_data_from_table(file_path, table):
+def get_data_from_table(file_path, table, columns='*'):
     with sqlite3.connect(file_path) as connection:
-        return pd.read_sql(f'select * from {table}', connection)
+        return pd.read_sql(f'select {columns} from {table}', connection)
 
 def get_raw_win_rate_query(file_path):
     with sqlite3.connect(file_path) as connection:
@@ -33,7 +33,7 @@ def analyze():
     print('[I/O] | Attempting to get all replays from file.')
     timer.start()
     if is_sql:
-        replay_df = get_data_from_table(replay_data_file_path, config.Tables.ReplayData)
+        replay_df = get_data_from_table(replay_data_file_path, config.Tables.ReplayData, 'p1_chara_id, p2_chara_id, winner')
     else:
         replay_df = pd.read_csv(replay_data_file_path)
     print(f'[I/O] | Succesfully got all replays from file. [{timer.stop_get_elapsed_reset():,.2f}s]')
@@ -42,14 +42,8 @@ def analyze():
     timer.start()
     replay_df['p1_chara'] = replay_df['p1_chara_id'].map(Characters.id_to_name)
     replay_df['p2_chara'] = replay_df['p2_chara_id'].map(Characters.id_to_name)
-    replay_df['Winner'] = replay_df.apply(
-        lambda row: row['p1_chara'] if row['winner'] == 1 else row['p2_chara'],
-        axis=1
-    )
-    replay_df['Loser'] = replay_df.apply(
-        lambda row: row['p1_chara'] if row['winner'] == 2 else row['p2_chara'],
-        axis=1
-    )
+    replay_df['Winner'] = np.where(replay_df['winner'] == 1, replay_df['p1_chara'], replay_df['p2_chara'])
+    replay_df['Loser'] = np.where(replay_df['winner'] == 2, replay_df['p1_chara'], replay_df['p2_chara'])
     wins = replay_df['Winner'].value_counts().rename_axis('Character').reset_index(name='Wins')
     losses = replay_df['Loser'].value_counts().rename_axis('Character').reset_index(name='Losses')
     stats = pd.merge(wins, losses, on='Character', how='outer').fillna(0)

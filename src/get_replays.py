@@ -58,16 +58,18 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime, 
                 except Exception as e:
                     tqdm.write(f'[Download Error] {e} | Encountered an error while attempting to download set {loops + 1} of {loops_required:,}, retrying.')
                     attempts = 0
+                    sleep_time = (attempts + 1) * 1.005
                     while attempts < config.MAX_RETRIES:
                         downloaded = None
                         try:
-                            time.sleep(1.005)
+                            time.sleep(sleep_time)
                             downloaded = download_replays(before)
                             tqdm.write(f'[Download Error] | Retry {attempts + 1} succeeded, the set was succesfully downloaded, resuming normal operation.')
                             break
                         except Exception as e:
-                            tqdm.write(f'[Download Error] | Retry {attempts + 1} failed, waiting 1 second and trying again.')
                             attempts += 1
+                            sleep_time = (attempts + 1) * 1.005
+                            tqdm.write(f'[Download Error] | Retry {attempts} failed, waiting {sleep_time} second(s) and trying again.')
                     else:
                         tqdm.write(f'[Download Error] | All retry attempts failed for set {loops + 1} of {loops_required:,} with before value {before}, and will not be included in the final output.')
                     
@@ -75,6 +77,7 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime, 
                         replays.extend(downloaded)
                         total_replays += len(downloaded)
                         del downloaded [:]
+                    loops += 1
                     time.sleep(1.005)
                     continue
                 
