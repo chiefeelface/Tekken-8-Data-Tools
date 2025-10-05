@@ -40,6 +40,10 @@ class Characters(Enum):
     Anna = 42
     Fahkumram = 43
 
+    @classmethod
+    def id_to_name(cls, id_):
+        return cls(id_).name.title()
+
 class Ranks(Enum):
     Beginner = 0
     First_Dan = 1
@@ -85,6 +89,10 @@ class Ranks(Enum):
     def _missing_(cls, value):
         # If the rank is not a known value, more than likely GoD∞
         return Ranks.God_of_Destruction_Infinity
+
+    @classmethod
+    def id_to_name(cls, id_):
+        return cls(id_).name
 
 class BattleTypes(Enum):
     Quick_Match = 1

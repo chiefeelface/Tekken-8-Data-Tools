@@ -1,5 +1,32 @@
-import requests, datetime, sqlite3, src.config as config, pandas as pd, src.enums as enums, os
+import requests, datetime, sqlite3, src.config as config, pandas as pd, src.enums as enums, os, time
 from src.models import ReplayData
+from typing import Literal
+
+class Timer:
+    def __init__(self) -> None:
+        self._start = None
+        self._end = None
+    
+    def start(self):
+        self._start = time.perf_counter()
+    
+    def stop(self):
+        self._end = time.perf_counter()
+
+    def reset(self):
+        self._start = None
+        self._end = None
+
+    def get_elapsed(self):
+        if self._start and self._end:
+            return self._end - self._start
+        return None
+
+    def stop_get_elapsed_reset(self, formatted: bool=False):
+        self.stop()
+        elapsed = self.get_elapsed() if not formatted else f'{self.get_elapsed():,.2f}s'
+        self.reset()
+        return elapsed
 
 def create_replay_dir():
     if not os.path.exists(config.REPLAY_DIR):
@@ -22,8 +49,8 @@ def create_tables(start_date: datetime.datetime, end_date: datetime.datetime):
             cursor.execute('PRAGMA foreign_keys = ON;')
 
             # Create main table
-            cursor.execute('''
-CREATE TABLE IF NOT EXISTS ReplayData (
+            cursor.execute(f'''
+CREATE TABLE IF NOT EXISTS {config.Tables.ReplayData} (
     battle_at INTEGER NOT NULL,
     battle_id TEXT PRIMARY KEY,
     battle_type INTEGER NOT NULL,
@@ -68,7 +95,7 @@ CREATE TABLE IF NOT EXISTS ReplayData (
     FOREIGN KEY (stage_id) REFERENCES Stages(Id)
 );
 ''')
-            for table in ['BattleTypes', 'Characters', 'Regions', 'Ranks', 'Stages']:
+            for table in [config.Tables.BattleTypes, config.Tables.Characters, config.Tables.Regions, config.Tables.Ranks, config.Tables.Stages]:
                 cursor.execute(f'''
 CREATE TABLE IF NOT EXISTS {table} (
     Id INTEGER PRIMARY KEY,
@@ -79,21 +106,55 @@ CREATE TABLE IF NOT EXISTS {table} (
         return e
     return None
 
-def enum_to_dict(enum):
-    return [{'Id': member.value, 'Name': member.name} for member in enum]
+def create_index(cursor: sqlite3.Cursor, index_name, table, column):
+    cursor.execute(f'CREATE INDEX IF NOT EXISTS {index_name} ON {table}({column});')
 
-def fill_tables_for_enums(start_date: datetime.datetime, end_date: datetime.datetime):
+def create_indexes(start_date: datetime.datetime, end_date: datetime.datetime):
     file_name = config.DB_FILE_BASE_NAME + f'_{start_date.date()}_{(end_date).date()}.db'
     create_replay_dir()
     # Ensure file exists
     open(file_name, 'a').close()
     try:
         with sqlite3.connect(file_name) as connection:
-            pd.DataFrame(enum_to_dict(enums.Characters)).to_sql('Characters', connection, if_exists='append', index=False)
-            pd.DataFrame(enum_to_dict(enums.Ranks)).to_sql('Ranks', connection, if_exists='append', index=False)
-            pd.DataFrame(enum_to_dict(enums.BattleTypes)).to_sql('BattleTypes', connection, if_exists='append', index=False)
-            pd.DataFrame(enum_to_dict(enums.Regions)).to_sql('Regions', connection, if_exists='append', index=False)
-            pd.DataFrame(enum_to_dict(enums.Stages)).to_sql('Stages', connection, if_exists='append', index=False)
+            cursor = connection.cursor()
+            indexes = [
+                {
+                    'name': f'idx_{config.Tables.ReplayData.lower()}_p1_chara_id',
+                    'table': config.Tables.ReplayData,
+                    'column': 'p1_chara_id'
+                },
+                {
+                    'name': f'idx_{config.Tables.ReplayData.lower()}_p2_chara_id',
+                    'table': config.Tables.ReplayData,
+                    'column': 'p2_chara_id'
+                },
+                {
+                    'name': f'idx_{config.Tables.ReplayData.lower()}_winner',
+                    'table': config.Tables.ReplayData,
+                    'column': 'winner'
+                }
+            ]
+            for index in indexes:
+                create_index(cursor, index['name'], index['table'], index['column'])
+    except Exception as e:
+        return e
+    return None
+
+def _enum_to_dict(enum):
+    return [{'Id': member.value, 'Name': member.name} for member in enum]
+
+def populate_lookup_tables(start_date: datetime.datetime, end_date: datetime.datetime):
+    file_name = config.DB_FILE_BASE_NAME + f'_{start_date.date()}_{(end_date).date()}.db'
+    create_replay_dir()
+    # Ensure file exists
+    open(file_name, 'a').close()
+    try:
+        with sqlite3.connect(file_name) as connection:
+            pd.DataFrame(_enum_to_dict(enums.Characters)).to_sql('Characters', connection, if_exists='append', index=False)
+            pd.DataFrame(_enum_to_dict(enums.Ranks)).to_sql('Ranks', connection, if_exists='append', index=False)
+            pd.DataFrame(_enum_to_dict(enums.BattleTypes)).to_sql('BattleTypes', connection, if_exists='append', index=False)
+            pd.DataFrame(_enum_to_dict(enums.Regions)).to_sql('Regions', connection, if_exists='append', index=False)
+            pd.DataFrame(_enum_to_dict(enums.Stages)).to_sql('Stages', connection, if_exists='append', index=False)
     except Exception as e:
         return e
     return None
