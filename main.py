@@ -1,10 +1,10 @@
 from PyInquirer import prompt
 from src.get_replays import get_replay_data
-from src.analyze_sqlite import analyze
+from src.analyze_replays import analyze_replay_data
 import datetime, time
 
 DOWNLOAD = 'Download Replays'
-ANALYZE = 'Analyze Replays (Not Functional)'
+ANALYZE = 'Analyze Replays'
 QUIT = 'Quit'
 
 def main():
@@ -47,7 +47,7 @@ def main():
             downloaded_replays = get_replay_data(start_date, end_date, True if answers['output_type'] == 'SQLite Database' else False)
             print(f'[Download] | Finished gathering {downloaded_replays:,} replays in a total of {round(time.perf_counter() - start_time, 2):,} seconds')
         elif answer['action'] == ANALYZE:
-            analyze()
+            analyze_replay_data()
         elif answer['action'] == QUIT:
             break
 

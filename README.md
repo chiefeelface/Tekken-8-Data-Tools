@@ -41,7 +41,7 @@ Simply run the main file and follow the prompts
 python main.py
 ```
 
-If your terminal does not have a (.venv) in front if the prompt, you will need to activate the virtual environment before running the file
+If your terminal does not have a (.venv) in front of the prompt, you will need to activate the virtual environment before running the file
 
 ```
 .\.venv\Scripts\activate
