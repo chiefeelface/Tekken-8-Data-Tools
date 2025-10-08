@@ -1,6 +1,6 @@
-import requests, datetime, sqlite3, src.config as config, pandas as pd, src.enums as enums, os, time
+import requests, datetime, sqlite3, src.config as config, polars as pl, src.enums as enums, os, time
 from src.models import ReplayData
-from typing import Literal
+from enum import Enum
 
 class Timer:
     def __init__(self) -> None:
@@ -28,6 +28,16 @@ class Timer:
         self.reset()
         return elapsed
 
+def try_remove_file(path, max_retries=10, delay=0.1):
+    if not os.path.exists(path):
+        return
+    for _ in range(max_retries):
+        try:
+            os.remove(path)
+            return
+        except:
+            time.sleep(delay)
+
 def create_replay_dir():
     if not os.path.exists(config.REPLAY_DIR):
         os.makedirs(config.REPLAY_DIR)
@@ -41,7 +51,7 @@ def create_tables(start_date: datetime.datetime, end_date: datetime.datetime):
     file_name = config.DB_FILE_BASE_NAME + f'_{start_date.date()}_{(end_date).date()}.db'
     create_replay_dir()
     # Ensure file exists
-    open(file_name, 'a').close()
+    with open(file_name, 'a'): pass
     try:
         with sqlite3.connect(file_name) as connection:
             cursor = connection.cursor()
@@ -95,6 +105,7 @@ CREATE TABLE IF NOT EXISTS {config.Tables.ReplayData} (
     FOREIGN KEY (stage_id) REFERENCES Stages(Id)
 );
 ''')
+            # Create lookup tables
             for table in [config.Tables.BattleTypes, config.Tables.Characters, config.Tables.Regions, config.Tables.Ranks, config.Tables.Stages]:
                 cursor.execute(f'''
 CREATE TABLE IF NOT EXISTS {table} (
@@ -106,14 +117,14 @@ CREATE TABLE IF NOT EXISTS {table} (
         return e
     return None
 
-def create_index(cursor: sqlite3.Cursor, index_name, table, column):
+def _create_index(cursor: sqlite3.Cursor, index_name, table, column):
     cursor.execute(f'CREATE INDEX IF NOT EXISTS {index_name} ON {table}({column});')
 
 def create_indexes(start_date: datetime.datetime, end_date: datetime.datetime):
     file_name = config.DB_FILE_BASE_NAME + f'_{start_date.date()}_{(end_date).date()}.db'
     create_replay_dir()
     # Ensure file exists
-    open(file_name, 'a').close()
+    with open(file_name, 'a'): pass
     try:
         with sqlite3.connect(file_name) as connection:
             cursor = connection.cursor()
@@ -135,26 +146,33 @@ def create_indexes(start_date: datetime.datetime, end_date: datetime.datetime):
                 }
             ]
             for index in indexes:
-                create_index(cursor, index['name'], index['table'], index['column'])
+                _create_index(cursor, index['name'], index['table'], index['column'])
     except Exception as e:
         return e
     return None
 
-def _enum_to_dict(enum):
+def _enum_to_dict(enum: type[Enum]):
     return [{'Id': member.value, 'Name': member.name} for member in enum]
+
+def _write_enum_to_database(enum, table, connection):
+    pl.DataFrame(_enum_to_dict(enum)).write_database(
+        table_name=table,
+        connection=connection,
+        if_table_exists='append'
+    )
 
 def populate_lookup_tables(start_date: datetime.datetime, end_date: datetime.datetime):
     file_name = config.DB_FILE_BASE_NAME + f'_{start_date.date()}_{(end_date).date()}.db'
     create_replay_dir()
     # Ensure file exists
-    open(file_name, 'a').close()
+    with open(file_name, 'a'): pass
     try:
-        with sqlite3.connect(file_name) as connection:
-            pd.DataFrame(_enum_to_dict(enums.Characters)).to_sql('Characters', connection, if_exists='append', index=False)
-            pd.DataFrame(_enum_to_dict(enums.Ranks)).to_sql('Ranks', connection, if_exists='append', index=False)
-            pd.DataFrame(_enum_to_dict(enums.BattleTypes)).to_sql('BattleTypes', connection, if_exists='append', index=False)
-            pd.DataFrame(_enum_to_dict(enums.Regions)).to_sql('Regions', connection, if_exists='append', index=False)
-            pd.DataFrame(_enum_to_dict(enums.Stages)).to_sql('Stages', connection, if_exists='append', index=False)
+        connection = config.SQLITE_URI + file_name
+        _write_enum_to_database(enums.Characters, config.Tables.Characters, connection)
+        _write_enum_to_database(enums.Ranks, config.Tables.Ranks, connection)
+        _write_enum_to_database(enums.BattleTypes, config.Tables.BattleTypes, connection)
+        _write_enum_to_database(enums.Regions, config.Tables.Regions, connection)
+        _write_enum_to_database(enums.Stages, config.Tables.Stages, connection)
     except Exception as e:
         return e
     return None

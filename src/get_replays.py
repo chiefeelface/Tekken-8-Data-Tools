@@ -1,4 +1,4 @@
-import time, datetime, math, os, pandas as pd, gc, sqlite3, src.config as config
+import time, datetime, math, os, polars as pl, gc, sqlite3, src.config as config
 from tqdm import tqdm
 from src.models import ReplayData
 from src.utils import *
@@ -112,26 +112,27 @@ def save_replay_data_to_file(replay_data: list[ReplayData], start_date: datetime
     tqdm.write(f'[I/O] | Attempting to save {len(replay_data):,} replays to file.')
     try:
         timer.start()
-        replays_df = pd.DataFrame(replay_data)
+        replays_df = pl.DataFrame(replay_data)
         create_replay_dir()
         if use_sql:
             file_name = config.DB_FILE_BASE_NAME + f'_{start_date.date()}_{(end_date).date()}.db'
-            with sqlite3.connect(file_name) as connection:
-                replays_df.to_sql(config.Tables.ReplayData, connection, if_exists='append', index=False)
-                tqdm.write(f'[I/O] | Successfully saved {len(replay_data):,} replays to file. [{timer.stop_get_elapsed_reset():,.2f}s]')
-                if use_indexes:
-                    timer.start()
-                    tqdm.write(f'[I/O] | Attempting to create indexes.')
-                    if e := create_indexes(start_date, end_date) != None:
-                        tqdm.write(f'[I/O Error] {e} | Failed to create indexes. [{timer.stop_get_elapsed_reset():,.2f}s]')
-                    else:
-                        tqdm.write(f'[I/O] | Successfully created indexes. [{timer.stop_get_elapsed_reset():,.2f}s]')
+            connection = config.SQLITE_URI + file_name
+            replays_df.write_database(
+                table_name=config.Tables.ReplayData,
+                connection=connection,
+                if_table_exists='append'
+            )
+            tqdm.write(f'[I/O] | Successfully saved {len(replay_data):,} replays to file. [{timer.stop_get_elapsed_reset():,.2f}s]')
+            if use_indexes:
+                timer.start()
+                tqdm.write(f'[I/O] | Attempting to create indexes.')
+                if e := create_indexes(start_date, end_date) != None:
+                    tqdm.write(f'[I/O Error] {e} | Failed to create indexes. [{timer.stop_get_elapsed_reset():,.2f}s]')
+                else:
+                    tqdm.write(f'[I/O] | Successfully created indexes. [{timer.stop_get_elapsed_reset():,.2f}s]')
         else:
             file_name = config.CSV_FILE_BASE_NAME + f'_{start_date.date()}_{(end_date).date()}.csv'
-            if not os.path.exists(file_name):
-                replays_df.to_csv(file_name, mode='a', header=True, index=False)
-            else:
-                replays_df.to_csv(file_name, mode='a', header=False, index=False)
+            replays_df.write_csv(file_name, include_header=not os.path.exists(file_name))
             tqdm.write(f'[I/O] | Successfully saved {len(replay_data):,} replays to file. [{timer.stop_get_elapsed_reset():,.2f}s]')
         
     except Exception as e:

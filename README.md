@@ -4,8 +4,7 @@ Basic data gathering and analysis(soon™) tool for Tekken 8 replays.
 ## Getting Started
 
 ### Prerequisites
-1. [Python 3.9](https://www.python.org/downloads/release/python-3913/)
-    - If you have other versions of Python and dont want to manually handle different versions and paths, I strongly recommend [pyenv-win](https://github.com/pyenv-win/pyenv-win)
+1. Any modern version of Python (will get an exact minimum version eventually)
 
 ### Installation
 
