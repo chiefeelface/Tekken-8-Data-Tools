@@ -16,40 +16,40 @@ Basic data gathering and analysis(soon™) tool for Tekken 8 replays.
 
 1. **Clone the repo**
 
-```bash
+```
 git clone https://github.com/chiefeelface/Tekken-8-Data-Tools.git
 cd Tekken-8-Data-Tools
 ```
 
 2. **Create and activate a virtual environment**
 
-```bash
+```
 python -m venv .venv
 .\.venv\Scripts\activate
 ```
 
 3. **Install dependencies**
 
-```bash
+```
 pip install -r requirements.txt
 ```
 
 4. **Run small test suite to ensure functionality**
 
-```bash
+```
 python -m unittest test
 ```
 
 ## Usage
 Simply run the main file and follow the prompts
 
-```bash
+```
 python main.py
 ```
 
 If your terminal does not have a (.venv) in front of the prompt, you will need to activate the virtual environment before running the file
 
-```bash
+```
 .\.venv\Scripts\activate
 ```
 
