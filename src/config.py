@@ -5,6 +5,13 @@ CSV_FILE_BASE_NAME = DB_FILE_BASE_NAME = REPLAY_DIR + '/replay_data'
 
 USE_SQLITE = True
 QUERY_FOLDER_PATH = 'queries/'
+SQLITE_URI = 'sqlite:///'
+
+DOWNLOAD = 'Download Replays'
+ANALYZE = 'Analyze Replays'
+QUIT = 'Quit'
+SQLITE = 'SQLite Database'
+CSV = 'CSV'
 
 class Tables:
     ReplayData = 'ReplayData'

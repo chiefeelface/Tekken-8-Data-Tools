@@ -1,6 +1,9 @@
 import unittest, os
 from src.utils import *
 
+MAX_RETRIES = 5
+
+# TODO: Fix this, its broken
 class Test(unittest.TestCase):
     def test_replay_download(self):
         timestamp = int(datetime.datetime(2025, 9, 1, tzinfo=datetime.timezone.utc).timestamp())
@@ -10,12 +13,11 @@ class Test(unittest.TestCase):
         start, end = datetime.datetime(1970, 1, 1), datetime.datetime(1970, 1, 2)
         failed = None
         try:
-            self.assertEqual(create_tables(start, end), None)
+            self.assertIsNone(create_tables(start, end))
         except Exception as e:
             failed = e
         # Cleanup
-        if os.path.exists(config.DB_FILE_BASE_NAME + f'_{start.date()}_{end.date()}.db'):
-            os.remove(config.DB_FILE_BASE_NAME + f'_{start.date()}_{end.date()}.db')
+        try_remove_file(config.DB_FILE_BASE_NAME + f'_{start.date()}_{end.date()}.db')
         if failed:
             raise failed
         
@@ -23,12 +25,11 @@ class Test(unittest.TestCase):
         start, end = datetime.datetime(1970, 1, 1), datetime.datetime(1970, 1, 2)
         failed = None
         try:
-            self.assertEqual(populate_lookup_tables(start, end), None)
+            self.assertIsNone(populate_lookup_tables(start, end))
         except Exception as e:
             failed = e
         # Cleanup
-        if os.path.exists(config.DB_FILE_BASE_NAME + f'_{start.date()}_{end.date()}.db'):
-            os.remove(config.DB_FILE_BASE_NAME + f'_{start.date()}_{end.date()}.db')
+        try_remove_file(config.DB_FILE_BASE_NAME + f'_{start.date()}_{end.date()}.db')
         if failed:
             raise failed
     
