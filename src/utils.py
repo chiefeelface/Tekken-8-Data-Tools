@@ -47,17 +47,13 @@ def download_replays(before: int) -> list[ReplayData]:
     replay_data = requests.get(request).json()
     return replay_data
 
-def create_tables(start_date: datetime.datetime, end_date: datetime.datetime):
-    file_name = config.DB_FILE_BASE_NAME + f'_{start_date.date()}_{(end_date).date()}.db'
+def create_tables(database_file: str):
     create_replay_dir()
     # Ensure file exists
-    with open(file_name, 'a'): pass
+    with open(database_file, 'a'): pass
     try:
-        with sqlite3.connect(file_name) as connection:
+        with sqlite3.connect(database_file) as connection:
             cursor = connection.cursor()
-            # Enable foreign keys
-            cursor.execute('PRAGMA foreign_keys = ON;')
-
             # Create main table
             cursor.execute(f'''
 CREATE TABLE IF NOT EXISTS {config.Tables.ReplayData} (
@@ -120,13 +116,12 @@ CREATE TABLE IF NOT EXISTS {table} (
 def _create_index(cursor: sqlite3.Cursor, index_name, table, column):
     cursor.execute(f'CREATE INDEX IF NOT EXISTS {index_name} ON {table}({column});')
 
-def create_indexes(start_date: datetime.datetime, end_date: datetime.datetime):
-    file_name = config.DB_FILE_BASE_NAME + f'_{start_date.date()}_{(end_date).date()}.db'
+def create_indexes(database_file: str):
     create_replay_dir()
     # Ensure file exists
-    with open(file_name, 'a'): pass
+    with open(database_file, 'a'): pass
     try:
-        with sqlite3.connect(file_name) as connection:
+        with sqlite3.connect(database_file) as connection:
             cursor = connection.cursor()
             indexes = [
                 {
@@ -161,13 +156,12 @@ def _write_enum_to_database(enum, table, connection):
         if_table_exists='append'
     )
 
-def populate_lookup_tables(start_date: datetime.datetime, end_date: datetime.datetime):
-    file_name = config.DB_FILE_BASE_NAME + f'_{start_date.date()}_{(end_date).date()}.db'
+def populate_lookup_tables(database_file: str):
     create_replay_dir()
     # Ensure file exists
-    with open(file_name, 'a'): pass
+    with open(database_file, 'a'): pass
     try:
-        connection = config.SQLITE_URI + file_name
+        connection = config.SQLITE_URI + database_file
         _write_enum_to_database(enums.Characters, config.Tables.Characters, connection)
         _write_enum_to_database(enums.Ranks, config.Tables.Ranks, connection)
         _write_enum_to_database(enums.BattleTypes, config.Tables.BattleTypes, connection)

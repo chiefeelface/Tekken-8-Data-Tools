@@ -1,6 +1,6 @@
 from src.get_replays import get_replay_data
 from src.analyze_replays import analyze_replay_data
-import datetime, time, src.config as config, questionary as q
+import datetime, time, src.config as config, questionary as q, os
 
 def main():
     while True:
@@ -35,7 +35,13 @@ def main():
             downloaded_replays = get_replay_data(start_date, end_date, file_type == config.SQLITE)
             print(f'[Download] | Finished gathering {downloaded_replays:,} replays in a total of {round(time.perf_counter() - start_time, 2):,} seconds')
         elif action == config.ANALYZE:
-            analyze_replay_data()
+            replay_data_file_path = q.select(
+                message='What file would you like to analyze',
+                choices=[
+                    file for file in os.listdir(config.REPLAY_DIR)
+                ]
+            ).ask()
+            analyze_replay_data(config.REPLAY_DIR + '/' + replay_data_file_path)
         elif action == config.QUIT:
             break
 

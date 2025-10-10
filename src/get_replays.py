@@ -1,4 +1,4 @@
-import time, datetime, math, os, polars as pl, gc, sqlite3, src.config as config
+import time, datetime, math, os, polars as pl, gc, src.config as config, questionary as q
 from tqdm import tqdm
 from src.models import ReplayData
 from src.utils import *
@@ -15,39 +15,58 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime, 
     end = math.trunc((end_date.replace(hour=23,minute=59,second=59)).timestamp())
     now = datetime.datetime.now(datetime.timezone.utc).timestamp()
     if end > now:
-        tqdm.write('[Download] | End date has not happened yet, setting to the current time.')
+        print('[Download] | End date has not happened yet, setting to the current time.')
         end = now
     before = start
 
     if use_sql:
         timer.start()
-        if os.path.exists(config.DB_FILE_BASE_NAME + f'_{start_date.date()}_{end_date.date()}.db'):
-            tqdm.write('[I/O] | Attempting to delete duplicate database file.')
-            try:
-                os.remove(config.DB_FILE_BASE_NAME + f'_{start_date.date()}_{end_date.date()}.db')
-            except Exception as e:
-                tqdm.write(f'[I/O Error] {e} | Failed to  delete duplicate database file. [{timer.stop_get_elapsed_reset():,.2f}s]')
-            else:
-                tqdm.write(f'[I/O] | Succesfully deleted duplicate database file. [{timer.stop_get_elapsed_reset():,.2f}s]')
+        file_name = config.DB_FILE_BASE_NAME + f'_{start_date.date()}_{end_date.date()}.db'
+        if os.path.exists(file_name):
+            if q.confirm('Duplicate database file found, would you like to delete it?').ask():
+                print('[I/O] | Attempting to delete duplicate database file.')
+                try:
+                    os.remove(file_name)
+                except Exception as e:
+                    print(f'[I/O Error] {e} | Failed to  delete duplicate database file. [{timer.stop_get_elapsed_reset():,.2f}s]')
+                else:
+                    print(f'[I/O] | Succesfully deleted duplicate database file. [{timer.stop_get_elapsed_reset():,.2f}s]')
         timer.start()
-        tqdm.write('[I/O] | Attempting to create tables with primary and foreign keys.')
-        if e := create_tables(start_date, end_date) != None:
-            tqdm.write(f'[I/O Error] {e} | Failed to create tables. [{timer.stop_get_elapsed_reset():,.2f}s]')
+        print('[I/O] | Attempting to create tables with primary and foreign keys.')
+        if e := create_tables(file_name) != None:
+            print(f'[I/O Error] {e} | Failed to create tables. [{timer.stop_get_elapsed_reset():,.2f}s]')
         else:
-            tqdm.write(f'[I/O] | Sucessfully created tables. [{timer.stop_get_elapsed_reset():,.2f}s]')
+            print(f'[I/O] | Sucessfully created tables. [{timer.stop_get_elapsed_reset():,.2f}s]')
         timer.start()
-        tqdm.write(f'[I/O] | Attempting to populate lookup tables.')
-        if e := populate_lookup_tables(start_date, end_date) != None:
-            tqdm.write(f'[I/O Error] {e} | Failed to populate lookup tables. [{timer.stop_get_elapsed_reset():,.2f}s]')
+        print(f'[I/O] | Attempting to populate lookup tables.')
+        if e := populate_lookup_tables(file_name) != None:
+            print(f'[I/O Error] {e} | Failed to populate lookup tables. [{timer.stop_get_elapsed_reset():,.2f}s]')
         else:
-            tqdm.write(f'[I/O] | Sucessfully populated lookup tables. [{timer.stop_get_elapsed_reset():,.2f}s]')
+            print(f'[I/O] | Sucessfully populated lookup tables. [{timer.stop_get_elapsed_reset():,.2f}s]')
+    else:
+        timer.start()
+        file_name = config.CSV_FILE_BASE_NAME + f'_{start_date.date()}_{end_date.date()}.csv'
+        if os.path.exists(file_name):
+            if q.confirm('Duplicate CSV file found, would you like to delete it?').ask():
+                print('[I/O] | Attempting to delete duplicate CSV file.')
+                try:
+                    os.remove(file_name)
+                except Exception as e:
+                    print(f'[I/O Error] {e} | Failed to  delete duplicate CSV file. [{timer.stop_get_elapsed_reset():,.2f}s]')
+                else:
+                    print(f'[I/O] | Succesfully deleted duplicate CSV file. [{timer.stop_get_elapsed_reset():,.2f}s]')
 
     loops_required = math.ceil((end - start) / 700)
     loops = 0
-    tqdm.write(f'[Download] | Beginning download of {loops_required :,} sets of replays.')
+    print(f'[Download] | Beginning download of {loops_required :,} sets of replays.')
     
     try:
-        with tqdm(total=loops_required, desc='[Download]', ncols=100, unit='replay set') as progress:
+        with tqdm(
+            total=loops_required,
+            ncols=75,
+            bar_format='[Download] | {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]',
+            mininterval=0.2
+        ) as progress:
             while before < end:
                 start_time = time.perf_counter()
 
@@ -85,7 +104,7 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime, 
                 total_replays += len(downloaded)
                 del downloaded [:]
                 if len(replays) > config.MAX_REPLAY_THRESHOLD:
-                    save_replay_data_to_file(replays, start_date, end_date, use_sql)
+                    save_replay_data_to_file(replays, file_name, use_sql)
                     del replays[:]
                 
                 loops += 1
@@ -95,11 +114,11 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime, 
                     time.sleep(1 - elapsed_time + 0.005)
                 
             if replays:
-                save_replay_data_to_file(replays, start_date, end_date, use_sql, True)
+                save_replay_data_to_file(replays, file_name, use_sql, True)
     except KeyboardInterrupt:
         tqdm.write('[Download] | Execution interrupted.')
         if replays:
-            save_replay_data_to_file(replays, start_date, end_date, use_sql, True)
+            save_replay_data_to_file(replays, file_name, use_sql, True)
         if downloaded:
             tqdm.write(f'[Download] | Replay set from before value {before} possibly lost.')
         return total_replays
@@ -107,7 +126,7 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime, 
 
     return total_replays
 
-def save_replay_data_to_file(replay_data: list[ReplayData], start_date: datetime.datetime, end_date: datetime.datetime, use_sql: bool, use_indexes: bool=False):
+def save_replay_data_to_file(replay_data: list[ReplayData], file_name: str, use_sql: bool, use_indexes: bool=False):
     timer = Timer()
     tqdm.write(f'[I/O] | Attempting to save {len(replay_data):,} replays to file.')
     try:
@@ -115,7 +134,6 @@ def save_replay_data_to_file(replay_data: list[ReplayData], start_date: datetime
         replays_df = pl.DataFrame(replay_data)
         create_replay_dir()
         if use_sql:
-            file_name = config.DB_FILE_BASE_NAME + f'_{start_date.date()}_{(end_date).date()}.db'
             connection = config.SQLITE_URI + file_name
             replays_df.write_database(
                 table_name=config.Tables.ReplayData,
@@ -126,12 +144,11 @@ def save_replay_data_to_file(replay_data: list[ReplayData], start_date: datetime
             if use_indexes:
                 timer.start()
                 tqdm.write(f'[I/O] | Attempting to create indexes.')
-                if e := create_indexes(start_date, end_date) != None:
+                if e := create_indexes(file_name) != None:
                     tqdm.write(f'[I/O Error] {e} | Failed to create indexes. [{timer.stop_get_elapsed_reset():,.2f}s]')
                 else:
                     tqdm.write(f'[I/O] | Successfully created indexes. [{timer.stop_get_elapsed_reset():,.2f}s]')
         else:
-            file_name = config.CSV_FILE_BASE_NAME + f'_{start_date.date()}_{(end_date).date()}.csv'
             replays_df.write_csv(file_name, include_header=not os.path.exists(file_name))
             tqdm.write(f'[I/O] | Successfully saved {len(replay_data):,} replays to file. [{timer.stop_get_elapsed_reset():,.2f}s]')
         

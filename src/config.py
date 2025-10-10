@@ -5,6 +5,7 @@ CSV_FILE_BASE_NAME = DB_FILE_BASE_NAME = REPLAY_DIR + '/replay_data'
 
 USE_SQLITE = True
 QUERY_FOLDER_PATH = 'queries/'
+# I think this is what you need to use for relative file paths
 SQLITE_URI = 'sqlite:///'
 
 DOWNLOAD = 'Download Replays'
