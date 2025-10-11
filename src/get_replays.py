@@ -123,7 +123,7 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime, 
             tqdm.write(f'[Download] | Replay set from before value {before} possibly lost.')
         return total_replays
 
-
+    print(f'[Download] | Finished gathering {total_replays:,} replays in a total of {round(time.perf_counter() - start_time, 2):,} seconds')
     return total_replays
 
 def save_replay_data_to_file(replay_data: list[ReplayData], file_name: str, use_sql: bool, use_indexes: bool=False):
@@ -161,8 +161,3 @@ def save_replay_data_to_file(replay_data: list[ReplayData], file_name: str, use_
     except:
         pass
     gc.collect()
-
-if __name__ == '__main__':
-    start_time = time.perf_counter()
-    downloaded_replays = get_replay_data(START_DATE, END_DATE, False)
-    tqdm.write(f'[Download] | Finished gathering {downloaded_replays:,} replays in a total of {round(time.perf_counter() - start_time, 2):,.2f} seconds')

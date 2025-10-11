@@ -31,9 +31,7 @@ def main():
             start_date = datetime.datetime.strptime(start_date, '%Y-%m-%d').replace(tzinfo=datetime.timezone.utc)
             end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d').replace(tzinfo=datetime.timezone.utc)
             
-            start_time = time.perf_counter()
-            downloaded_replays = get_replay_data(start_date, end_date, file_type == config.SQLITE)
-            print(f'[Download] | Finished gathering {downloaded_replays:,} replays in a total of {round(time.perf_counter() - start_time, 2):,} seconds')
+            get_replay_data(start_date, end_date, file_type == config.SQLITE)
         elif action == config.ANALYZE:
             replay_data_file_path = q.select(
                 message='What file would you like to analyze',
