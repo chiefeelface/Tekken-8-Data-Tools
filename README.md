@@ -34,12 +34,6 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-4. **Run small test suite to ensure functionality**
-
-```
-python -m unittest test
-```
-
 ## Usage
 Simply run the main file and follow the prompts
 

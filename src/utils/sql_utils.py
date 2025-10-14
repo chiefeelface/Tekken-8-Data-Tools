@@ -1,56 +1,10 @@
-import requests, datetime, sqlite3, src.config as config, polars as pl, src.enums as enums, os, time
-from src.models import ReplayData
+import sqlite3, src.config as config, src.enums as enums, polars as pl
+from src.utils.file_utils import create_replay_dir, ensure_file_exists
 from enum import Enum
-
-class Timer:
-    def __init__(self) -> None:
-        self._start = None
-        self._end = None
-    
-    def start(self):
-        self._start = time.perf_counter()
-    
-    def stop(self):
-        self._end = time.perf_counter()
-
-    def reset(self):
-        self._start = None
-        self._end = None
-
-    def get_elapsed(self):
-        if self._start and self._end:
-            return self._end - self._start
-        return None
-
-    def stop_get_elapsed_reset(self, formatted: bool=False):
-        self.stop()
-        elapsed = self.get_elapsed() if not formatted else f'{self.get_elapsed():,.2f}s'
-        self.reset()
-        return elapsed
-
-def try_remove_file(path, max_retries=10, delay=0.1):
-    if not os.path.exists(path):
-        return
-    for _ in range(max_retries):
-        try:
-            os.remove(path)
-            return
-        except:
-            time.sleep(delay)
-
-def create_replay_dir():
-    if not os.path.exists(config.REPLAY_DIR):
-        os.makedirs(config.REPLAY_DIR)
-
-def download_replays(before: int) -> list[ReplayData]:
-    request = f'https://wank.wavu.wiki/api/replays?before={before}'
-    replay_data = requests.get(request).json()
-    return replay_data
 
 def create_tables(database_file: str):
     create_replay_dir()
-    # Ensure file exists
-    with open(database_file, 'a'): pass
+    ensure_file_exists(database_file)
     try:
         with sqlite3.connect(database_file) as connection:
             cursor = connection.cursor()
@@ -118,8 +72,7 @@ def _create_index(cursor: sqlite3.Cursor, index_name, table, column):
 
 def create_indexes(database_file: str):
     create_replay_dir()
-    # Ensure file exists
-    with open(database_file, 'a'): pass
+    ensure_file_exists(database_file)
     try:
         with sqlite3.connect(database_file) as connection:
             cursor = connection.cursor()
@@ -149,24 +102,23 @@ def create_indexes(database_file: str):
 def _enum_to_dict(enum: type[Enum]):
     return [{'Id': member.value, 'Name': member.name} for member in enum]
 
-def _write_enum_to_database(enum, table, connection):
+def _write_enum_to_table(enum, table, connection):
     pl.DataFrame(_enum_to_dict(enum)).write_database(
         table_name=table,
         connection=connection,
         if_table_exists='append'
     )
 
-def populate_lookup_tables(database_file: str):
+def populate_lookup_tables(database_file: str): 
     create_replay_dir()
-    # Ensure file exists
-    with open(database_file, 'a'): pass
+    ensure_file_exists(database_file)
     try:
         connection = config.SQLITE_URI + database_file
-        _write_enum_to_database(enums.Characters, config.Tables.Characters, connection)
-        _write_enum_to_database(enums.Ranks, config.Tables.Ranks, connection)
-        _write_enum_to_database(enums.BattleTypes, config.Tables.BattleTypes, connection)
-        _write_enum_to_database(enums.Regions, config.Tables.Regions, connection)
-        _write_enum_to_database(enums.Stages, config.Tables.Stages, connection)
+        _write_enum_to_table(enums.Characters, config.Tables.Characters, connection)
+        _write_enum_to_table(enums.Ranks, config.Tables.Ranks, connection)
+        _write_enum_to_table(enums.BattleTypes, config.Tables.BattleTypes, connection)
+        _write_enum_to_table(enums.Regions, config.Tables.Regions, connection)
+        _write_enum_to_table(enums.Stages, config.Tables.Stages, connection)
     except Exception as e:
         return e
     return None

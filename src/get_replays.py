@@ -1,10 +1,17 @@
-import time, datetime, math, os, polars as pl, gc, src.config as config, questionary as q
+import time, datetime, math, os, polars as pl, gc, src.config as config, questionary as q, requests
 from tqdm import tqdm
 from src.models import ReplayData
-from src.utils import *
+from src.utils.sql_utils import create_tables, create_indexes, populate_lookup_tables
+from src.utils.timer import Timer
+from src.utils.file_utils import create_replay_dir
 
 START_DATE = datetime.datetime(2025, 9, 1).replace(tzinfo=datetime.timezone.utc)
 END_DATE = datetime.datetime(2025, 9, 2).replace(tzinfo=datetime.timezone.utc)
+
+def _download_replays(before: int) -> list[ReplayData]:
+    request = f'https://wank.wavu.wiki/api/replays?before={before}'
+    replay_data = requests.get(request).json()
+    return replay_data
 
 def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime, use_sql: bool):
     timer = Timer()
@@ -73,7 +80,7 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime, 
                 before += 700
 
                 try:
-                    downloaded = download_replays(before)
+                    downloaded = _download_replays(before)
                 except Exception as e:
                     tqdm.write(f'[Download Error] {e} | Encountered an error while attempting to download set {loops + 1} of {loops_required:,}, retrying.')
                     attempts = 0
@@ -82,7 +89,7 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime, 
                         downloaded = None
                         try:
                             time.sleep(sleep_time)
-                            downloaded = download_replays(before)
+                            downloaded = _download_replays(before)
                             tqdm.write(f'[Download Error] | Retry {attempts + 1} succeeded, the set was succesfully downloaded, resuming normal operation.')
                             break
                         except Exception as e:
@@ -104,7 +111,7 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime, 
                 total_replays += len(downloaded)
                 del downloaded [:]
                 if len(replays) > config.MAX_REPLAY_THRESHOLD:
-                    save_replay_data_to_file(replays, file_name, use_sql)
+                    _save_replay_data_to_file(replays, file_name, use_sql)
                     del replays[:]
                 
                 loops += 1
@@ -114,11 +121,11 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime, 
                     time.sleep(1 - elapsed_time + 0.005)
                 
             if replays:
-                save_replay_data_to_file(replays, file_name, use_sql, True)
+                _save_replay_data_to_file(replays, file_name, use_sql, True)
     except KeyboardInterrupt:
         tqdm.write('[Download] | Execution interrupted.')
         if replays:
-            save_replay_data_to_file(replays, file_name, use_sql, True)
+            _save_replay_data_to_file(replays, file_name, use_sql, True)
         if downloaded:
             tqdm.write(f'[Download] | Replay set from before value {before} possibly lost.')
         return total_replays
@@ -126,7 +133,7 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime, 
     print(f'[Download] | Finished gathering {total_replays:,} replays in a total of {round(time.perf_counter() - start_time, 2):,} seconds')
     return total_replays
 
-def save_replay_data_to_file(replay_data: list[ReplayData], file_name: str, use_sql: bool, use_indexes: bool=False):
+def _save_replay_data_to_file(replay_data: list[ReplayData], file_name: str, use_sql: bool, use_indexes: bool=False):
     timer = Timer()
     tqdm.write(f'[I/O] | Attempting to save {len(replay_data):,} replays to file.')
     try:
