@@ -123,11 +123,11 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime, 
             if replays:
                 _save_replay_data_to_file(replays, file_name, use_sql, True)
     except KeyboardInterrupt:
-        tqdm.write('[Download] | Execution interrupted.')
+        print('[Download] | Execution interrupted.')
         if replays:
             _save_replay_data_to_file(replays, file_name, use_sql, True)
         if downloaded:
-            tqdm.write(f'[Download] | Replay set from before value {before} possibly lost.')
+            print(f'[Download] | Replay set from before value {before} possibly lost.')
         return total_replays
 
     print(f'[Download] | Finished gathering {total_replays:,} replays in a total of {round(time.perf_counter() - start_time, 2):,} seconds')
