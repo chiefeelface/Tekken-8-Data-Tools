@@ -147,13 +147,13 @@ def _get_rank_percentiles_and_distribution(player_stats_df: pl.DataFrame):
     ).sort('ModeRank')
     total_players = player_stats_df.height
     rank_distribution = rank_counts.with_columns(
-        (pl.col('Players') / total_players * 100).alias('ModeRankDistribution')
+        (pl.col('Players') / total_players).alias('ModeRankDistribution')
     )
     rank_percentiles = rank_counts.with_columns(
         pl.col('Players').cum_sum().shift().fill_null(0).alias('CumulativePlayers')
     )
     rank_percentiles = rank_percentiles.with_columns(
-        (pl.col('CumulativePlayers') / total_players * 100).alias('ModeRankPercentile')
+        (pl.col('CumulativePlayers') / total_players).alias('ModeRankPercentile')
     )
     return rank_percentiles.join(rank_distribution, 'ModeRank').select([
         'ModeRank',
