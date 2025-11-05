@@ -8,6 +8,8 @@ from src.utils.file_utils import create_replay_dir
 START_DATE = datetime.datetime(2025, 9, 1).replace(tzinfo=datetime.timezone.utc)
 END_DATE = datetime.datetime(2025, 9, 2).replace(tzinfo=datetime.timezone.utc)
 
+first_save: bool = True
+
 def _download_replays(before: int) -> list[ReplayData]:
     request = f'https://wank.wavu.wiki/api/replays?before={before}'
     replay_data = requests.get(request).json()
@@ -18,11 +20,20 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime, 
     total_replays: int = 0
     replays: list[ReplayData] = []
 
-    start = math.trunc(start_date.timestamp())
-    end = math.trunc((end_date.replace(hour=23,minute=59,second=59)).timestamp())
-    now = datetime.datetime.now(datetime.timezone.utc).timestamp()
+    # Get local time zone
+    local_offset_hours = time.localtime().tm_gmtoff // 3600
+    local_offset_minutes = (time.localtime().tm_gmtoff % 3600) // 60
+    local_timezone = datetime.timezone(datetime.timedelta(hours=local_offset_hours, minutes=local_offset_minutes))
+
+    # Apply to start and end dates while getting truncated timestamp
+    start = math.trunc(start_date.replace(tzinfo=local_timezone).timestamp())
+    end = math.trunc(end_date.replace(hour=23,minute=59,second=59, tzinfo=local_timezone).timestamp())
+
+    # now will already have correct timestamp so we are good
+    now = math.trunc(datetime.datetime.now().timestamp())
+
     if end > now:
-        print('[Download] | End date has not happened yet, setting to the current time.')
+        print('[Download] | End date has not happened or is not over, setting to the current time.')
         end = now
     before = start
 
@@ -156,7 +167,11 @@ def _save_replay_data_to_file(replay_data: list[ReplayData], file_name: str, use
                 else:
                     tqdm.write(f'[I/O] | Successfully created indexes. [{timer.stop_get_elapsed_reset():,.2f}s]')
         else:
-            replays_df.write_csv(file_name, include_header=not os.path.exists(file_name))
+            # FIXME: This is really fucked up and there is probably a better way to do this
+            global first_save
+            with open(file_name, mode='a', encoding='utf8') as file:
+                replays_df.write_csv(file, include_header=first_save)
+                first_save = False
             tqdm.write(f'[I/O] | Successfully saved {len(replay_data):,} replays to file. [{timer.stop_get_elapsed_reset():,.2f}s]')
         
     except Exception as e:

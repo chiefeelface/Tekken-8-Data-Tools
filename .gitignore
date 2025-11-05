@@ -1,10 +1,11 @@
 # Dont include results in repo
 /downloaded_replays
 
+# Dont include hidden directories and pycache
 /.*
 **/__pycache__/
 
-
+# Dont include any data
 *.csv
 *.db
 *.xlsx

@@ -1,6 +1,8 @@
 from enum import Enum
+from typing import Any
 
 class Characters(Enum):
+    Unknown = -1
     Paul = 0
     Law = 1
     King = 2
@@ -39,6 +41,10 @@ class Characters(Enum):
     Clive = 41
     Anna = 42
     Fahkumram = 43
+
+    @classmethod
+    def _missing_(cls, value: object) -> Any:
+        return Characters.Unknown
 
     @classmethod
     def id_to_name(cls, id_):
@@ -86,7 +92,7 @@ class Ranks(Enum):
     # This is probably wrong
 
     @classmethod
-    def _missing_(cls, value):
+    def _missing_(cls, value: object) -> Any:
         # If the rank is not a known value, more than likely GoD∞
         return Ranks.God_of_Destruction_Infinity
 

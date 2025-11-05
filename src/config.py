@@ -10,8 +10,10 @@ QUERY_FOLDER_PATH = 'queries/'
 # I think this is what you need to use for relative file paths
 SQLITE_URI = 'sqlite:///'
 
+# Prompt configuration
 DOWNLOAD = 'Download Replays'
 ANALYZE = 'Analyze Replays'
+HELP = 'Help'
 QUIT = 'Quit'
 SQLITE = 'SQLite Database'
 CSV = 'CSV'

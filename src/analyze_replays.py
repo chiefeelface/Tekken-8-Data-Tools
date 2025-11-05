@@ -1,4 +1,4 @@
-import sqlite3, src.config as config, polars as pl, xlsxwriter
+import sqlite3, src.config as config, polars as pl
 from pathlib import Path
 from src.utils.timer import Timer
 from src.enums import *
@@ -55,7 +55,7 @@ def _calculate_raw_win_rate(replay_df: pl.DataFrame):
         .sort('RawWinRate', descending=True)
     )
 
-def _get_unique_players(replay_df: pl.DataFrame):
+def _get_unique_players_stats(replay_df: pl.DataFrame):
     # Data to get from players:
     # wins, losses, total games, most played character, most played character games, win rate, highest rank, average rank
     # Step 1: Normalize players into one row per player per match
@@ -139,6 +139,28 @@ def _get_unique_players(replay_df: pl.DataFrame):
         'ModeRank', 'ModeRankName',
         'MostPlayedChara',
         'MostPlayedCharaGames',
+    ]).sort('TotalGames', descending=True)
+
+def _get_rank_percentiles_and_distribution(player_stats_df: pl.DataFrame):
+    rank_counts = player_stats_df.group_by(['ModeRank', 'ModeRankName']).agg(
+        [pl.count().alias('Players')]
+    ).sort('ModeRank')
+    total_players = player_stats_df.height
+    rank_distribution = rank_counts.with_columns(
+        (pl.col('Players') / total_players * 100).alias('ModeRankDistribution')
+    )
+    rank_percentiles = rank_counts.with_columns(
+        pl.col('Players').cum_sum().shift().fill_null(0).alias('CumulativePlayers')
+    )
+    rank_percentiles = rank_percentiles.with_columns(
+        (pl.col('CumulativePlayers') / total_players * 100).alias('ModeRankPercentile')
+    )
+    return rank_percentiles.join(rank_distribution, 'ModeRank').select([
+        'ModeRank',
+        'ModeRankName',
+        'ModeRankPercentile',
+        'ModeRankDistribution',
+        'Players'
     ])
 
 def analyze_replay_data(file_path: str):
@@ -167,16 +189,22 @@ def analyze_replay_data(file_path: str):
     # FIXME: No need to do this twice, get all this stuff in the first read from file
     print('[I/O] | Attempting to get all player stats from file.')
     if is_sql:
-        replay_df = _get_data_from_table(file_path, config.Tables.ReplayData, ['battle_at', 'p1_polaris_id', 'p1_chara_id', 'p1_name', 'p2_polaris_id', 'p2_chara_id', 'p2_name', 'winner'])
+        replay_df = _get_data_from_table(file_path, config.Tables.ReplayData, ['battle_at', 'p1_polaris_id', 'p1_chara_id', 'p1_name', 'p1_rank', 'p2_polaris_id', 'p2_chara_id', 'p2_name', 'p2_rank', 'winner'])
     else:
         replay_df = pl.read_csv(file_path, columns=['battle_at', 'p1_polaris_id', 'p1_chara_id', 'p1_name', 'p1_rank', 'p2_polaris_id', 'p2_chara_id', 'p2_name', 'p2_rank', 'winner'])
     print(f'[I/O] | Succesfully got all player stats from file. [{timer.stop_get_elapsed_reset():,.2f}s]')
 
     timer.start()
     print('[I/O] | Attempting to consolidate player stats.')
-    player_stats = _get_unique_players(replay_df)
+    player_stats = _get_unique_players_stats(replay_df)
     del replay_df
     print(f'[I/O] | Succesfully consolidated player stats. [{timer.stop_get_elapsed_reset():,.2f}s]')
     print(player_stats)
 
-    return stats, player_stats
+    timer.start()
+    print('[I/O] | Attempting to calculate rank percentiles and distribution.')
+    rank_percentiles_and_distribution = _get_rank_percentiles_and_distribution(player_stats)
+    print(f'[I/O] | Succesfully calculated rank percentiles and distribution. [{timer.stop_get_elapsed_reset():,.2f}s]')
+    print(rank_percentiles_and_distribution)
+
+    return stats, player_stats, rank_percentiles_and_distribution
