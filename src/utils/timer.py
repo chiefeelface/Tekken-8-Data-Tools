@@ -20,8 +20,8 @@ class Timer:
             return self._end - self._start
         return None
 
-    def stop_get_elapsed_reset(self, formatted: bool=False):
+    def stop_get_elapsed_reset(self):
         self.stop()
-        elapsed = self.get_elapsed() if not formatted else f'{self.get_elapsed():,.2f}s'
+        elapsed = self.get_elapsed()
         self.reset()
         return elapsed
