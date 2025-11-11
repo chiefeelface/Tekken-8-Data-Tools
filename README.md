@@ -1,5 +1,5 @@
 # Tekken 8 Data Tools
-Basic data gathering and analysis(soon™) tool for Tekken 8 replays.
+Basic data gathering and analysis tool for Tekken 8 replays.
 
 ---
 
@@ -34,12 +34,6 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-4. **Run small test suite to ensure functionality**
-
-```
-python -m unittest test
-```
-
 ## Usage
 Simply run the main file and follow the prompts
 
@@ -57,4 +51,12 @@ If downloading replays, it will download 700 seconds worth of replays every 1 se
 
 Saving replays to an SQLite database is only recommended if you are going to write your own queries, as the analysis is much slower (10-15x) then when using a CSV file. If you choose to save the replays to a SQLite database file there are lookup tables you can join on to get the names of characters, stages, etc. to make the data readable.
 
-The replays will be saved intermittently once the total replays downloaded reaches 1,000,000 to the `downloaded_replays` folder, with numerous fail-safes to prevent any downloaded replays from being lost in the event of network failure or any other errors.
+The replays will be saved intermittently once the total replays downloaded reaches 1,000,000 to the `downloaded_replays` directory, with numerous fail-safes to prevent any downloaded replays from being lost in the event of network failure or any other errors.
+
+If you choose to save the analysis to an excel file, it will be in the `results` directory.
+
+## Analysis Ideas
+ - Ping Tekken 8 API to get highest ranked character by player.
+ - Get most played character win rate and win rate without most played character by player.
+ - Get average win rate by rank.
+ - Get average win rate by character by rank.
