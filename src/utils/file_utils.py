@@ -1,4 +1,4 @@
-import os, src.config as config, time, pathlib, polars as pl, xlsxwriter
+import os, src.config as config, pathlib, polars as pl, xlsxwriter, src.utils.logger as logger
 from src.utils.timer import Timer
 
 DATAFRAME = 0
@@ -23,15 +23,15 @@ def ensure_file_exists(file: str | pathlib.Path):
 def write_results_to_excel(replay_file, results: list[tuple[pl.DataFrame, str]]):
     timer = Timer()
     create_results_dir()
-    print('[I/O] | Attempting to save results to an excel file.')
+    logger.io('Attempting to save results to an excel file')
     with xlsxwriter.Workbook(config.XLSX_FILE_BASE_NAME + pathlib.Path(replay_file).stem.replace('replay_data', 'results') + '.xlsx') as wb:
         for result in results:
             timer.start()
             try:
                 result[DATAFRAME].write_excel(wb, worksheet=result[WORKSHEET])
             except:
-                print(f'[I/O] | Failed to save worksheet {result[WORKSHEET]} to file.')
-            print(f'[I/O] | Successfully saved worksheet {result[WORKSHEET]} to file. [{timer.stop_get_elapsed_reset():,.2f}s]')
+                logger.io(f'Failed to save worksheet {result[WORKSHEET]} to file')
+            logger.io(f'Successfully saved worksheet {result[WORKSHEET]} to file', timer.stop_get_elapsed_reset())
         timer.start()
-        print('[I/O] | Attempting to write all saved worksheets to file.')
-    print(f'[I/O] | Successfully wrote all saved worksheets to file. [{timer.stop_get_elapsed_reset():,.2f}s]')
+        logger.io('Attempting to write all saved worksheets to file')
+    logger.io(f'Successfully wrote all saved worksheets to file', timer.stop_get_elapsed_reset())

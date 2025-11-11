@@ -10,7 +10,7 @@ def _get_data_from_table(file_path, table, columns=['*']):
 def _calculate_raw_win_rate(replay_df: pl.DataFrame):
     chara_lookup = pl.DataFrame({
         'chara_id': [chara.value for chara in Characters],
-        'chara_name': [chara.name for chara in Characters]
+        'chara_name': [chara.name.replace('_', ' ') for chara in Characters]
     })
     replay_df = (
         replay_df
@@ -28,32 +28,71 @@ def _calculate_raw_win_rate(replay_df: pl.DataFrame):
         .then(pl.col('p1_chara'))
         .otherwise(pl.col('p2_chara'))
         .alias('Loser'),
+        pl
+        .when(pl.col('winner') == 3)
+        .then(pl.col('p1_chara'))
+        .otherwise(None)
+        .alias('Tie1'),
+        pl
+        .when(pl.col('winner') == 3)
+        .then(pl.col('p2_chara'))
+        .otherwise(None)
+        .alias('Tie2')
     ])
     wins = (
         replay_df
         .group_by('Winner')
         .agg(pl.count().alias('Wins'))
         .rename({'Winner': 'Character'})
+        .select('Character', 'Wins')
     )
     losses = (
         replay_df
         .group_by('Loser')
         .agg(pl.count().alias('Losses'))
         .rename({'Loser': 'Character'})
+        .select('Character', 'Losses')
     )
-    return (
+    ties = (
+        replay_df
+        .select(['Tie1', 'Tie2'])
+        .unpivot(variable_name='Slot', value_name='Character')
+        .drop_nulls()
+        .group_by('Character')
+        .agg(pl.count().alias('Ties'))
+        .select('Character', 'Ties')
+    )
+    pl.Config.set_tbl_rows(40)
+    pl.Config.set_tbl_cols(40)
+    picks = (
         wins
-        .join(losses, on='Character', how='outer')
-        .drop('Character_right') # Need this since a duplicate Character column is made when aggregating winners and losers
+        .join(losses, on='Character', how='inner', coalesce=True)
+        .join(ties, on='Character', how='full', coalesce=True)
+    )
+    total_picks = picks.select(pl.col('Wins') + pl.col('Losses') + pl.col('Ties')).sum().to_series(0)[0]
+
+    stats = (
+        wins
+        .join(losses, on='Character', how='full', coalesce=True)
+        .join(ties, on='Character', how='full', coalesce=True)
+        .join(picks, on='Character', how='full', coalesce=True)
         .fill_null(0)
         .with_columns([
-            pl.col('Wins'),
-            pl.col('Losses'),
-            (pl.col('Wins') + pl.col('Losses')).alias('TotalGames'),
-            (pl.col('Wins') / (pl.col('Wins') + pl.col('Losses'))).alias('RawWinRate')
+            (pl.col('Wins') + pl.col('Losses') + pl.col('Ties')).alias('TotalGames'),
+            (pl.col('Wins') / (pl.col('Wins') + pl.col('Losses'))).alias('RawWinRate'),
+            ((pl.col('Wins') + pl.col('Losses') + pl.col('Ties')) / total_picks).alias('PickRate')
         ])
-        .sort('RawWinRate', descending=True)
     )
+
+    return stats.select(
+        'Character',
+        'Wins',
+        'Losses',
+        'Ties',
+        'TotalGames',
+        'RawWinRate',
+        'PickRate'
+    ).sort('RawWinRate', descending=True)
 
 def _get_unique_players_stats(replay_df: pl.DataFrame):
     # Data to get from players:
@@ -68,15 +107,22 @@ def _get_unique_players_stats(replay_df: pl.DataFrame):
         "IsWin": pl.concat([
             (replay_df["winner"] == 1).cast(pl.Int8),
             (replay_df["winner"] == 2).cast(pl.Int8)
-        ])
+        ]),
+        "IsTie": pl.concat([
+            ((replay_df["winner"].is_null()) | (replay_df["winner"] == 3)).cast(pl.Int8),
+            ((replay_df["winner"].is_null()) | (replay_df["winner"] == 3)).cast(pl.Int8)
+        ]),
     })
 
     # Step 2: Get the most recent player name per player
-    latest_names = (
+    latest_player_info = (
         players_df
         .sort('battle_at', descending=True)
         .group_by('PolarisId')
-        .agg([pl.first('PlayerName')])
+        .agg([
+            pl.first('PlayerName'),
+            #pl.first('Rank').alias('MostRecentRank')
+        ])
     )
 
     # Step 3: Aggregate stats per player
@@ -86,7 +132,8 @@ def _get_unique_players_stats(replay_df: pl.DataFrame):
         .agg([
             pl.count().alias('TotalGames'),
             pl.sum('IsWin').cast(pl.Int64).alias('Wins'),
-            (pl.count() - pl.sum('IsWin')).cast(pl.Int64).alias('Losses'),
+            (pl.count() - pl.sum('IsWin') - pl.sum('IsTie')).cast(pl.Int64).alias('Losses'),
+            pl.sum('IsTie').cast(pl.Int64).alias('Ties'),
             (pl.mean('IsWin')).alias('WinRate'),
             pl.max('Rank').alias('HighestRank'),
             pl.col('Rank').median().cast(pl.Int64).alias('MedianRank'),
@@ -116,14 +163,14 @@ def _get_unique_players_stats(replay_df: pl.DataFrame):
     # Step 5: Join all results together
     player_stats = (
         stats
-        .join(latest_names, on='PolarisId', how='left')
+        .join(latest_player_info, on='PolarisId', how='left')
         .join(most_played_chara, on='PolarisId', how='left')
         .with_columns([
             pl.col('WinRate'),
             pl.col('MostPlayedChara').cast(pl.Utf8).replace(chara_id_to_name).alias('MostPlayedChara'),
             pl.col('HighestRank').cast(pl.Utf8).replace(rank_id_to_name).alias('HighestRankName'),
             pl.col('MedianRank').cast(pl.Utf8).replace(rank_id_to_name).alias('MedianRankName'),
-            pl.col('ModeRank').cast(pl.Utf8).replace(rank_id_to_name).alias('ModeRankName')
+            pl.col('ModeRank').cast(pl.Utf8).replace(rank_id_to_name).alias('ModeRankName'),
         ])
     )
 
@@ -132,6 +179,7 @@ def _get_unique_players_stats(replay_df: pl.DataFrame):
         'PlayerName',
         'Wins',
         'Losses',
+        'Ties',
         'TotalGames',
         'WinRate',
         'HighestRank', 'HighestRankName',

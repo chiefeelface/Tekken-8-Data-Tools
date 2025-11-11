@@ -41,6 +41,7 @@ class Characters(Enum):
     Clive = 41
     Anna = 42
     Fahkumram = 43
+    Armor_king = 44
 
     @classmethod
     def _missing_(cls, value: object) -> Any:
