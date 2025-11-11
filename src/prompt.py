@@ -37,7 +37,7 @@ def prompt():
     elif action == config.ANALYZE:
         replay_data_file_path = q.select(
             message='What file would you like to analyze',
-            choices=[
+            choices=[ 
                 file for file in os.listdir(config.REPLAY_DIR)
             ]
         ).ask()
@@ -48,7 +48,7 @@ def prompt():
                     (player_stats, 'Player Stats',),
                     (rank_percentiles_and_distribution, 'Rank Percentiles & Distribution',)
             ])
-    elif action == config.QUIT:
+    elif action == config.QUIT or action == None:
         return False
     elif action == config.HELP:
         print('🐊')
