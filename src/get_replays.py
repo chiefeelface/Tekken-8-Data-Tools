@@ -53,15 +53,13 @@ def get_replay_data(start_date: datetime.datetime, end_date: datetime.datetime, 
                     logger.io('Succesfully deleted duplicate database file', timer.stop_get_elapsed_reset())
         timer.start()
         logger.io('Attempting to create tables with primary and foreign keys')
-        e = create_tables(file_name)
-        if e:
+        if e := create_tables(file_name):
             logger.io_error('Failed to create tables', e, timer.stop_get_elapsed_reset())
         else:
             logger.io('Sucessfully created tables', timer.stop_get_elapsed_reset())
         timer.start()
         logger.io('Attempting to populate lookup tables')
-        e = populate_lookup_tables(file_name)
-        if e:
+        if e := populate_lookup_tables(file_name):
             logger.io_error('Failed to populate lookup tables', e, timer.stop_get_elapsed_reset())
         else:
             logger.io('Sucessfully populated lookup tables', timer.stop_get_elapsed_reset())
@@ -187,5 +185,4 @@ def _save_replay_data_to_file(replay_data: list[ReplayData], file_name: str, use
         del replays_df
     except:
         pass
-    uncollected_items = gc.collect()
-    logger.log('system', f'Garbage manually collected, {uncollected_items} item(s) left uncollected', use_tqdm=True)
+    gc.collect()

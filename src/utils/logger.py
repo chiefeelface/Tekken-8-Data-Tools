@@ -1,14 +1,12 @@
 from typing import Literal
 from tqdm import tqdm
 
-def log(log_type: Literal['io', 'download', 'system'], message: str, error: bool=False, error_message: Exception | None=None, time: float | None=None, use_tqdm: bool=False):
+def log(log_type: Literal['io', 'download'], message: str, error: bool=False, error_message: Exception | None=None, time: float | None=None, use_tqdm: bool=False):
     out = ''
     if log_type == 'io':
         out = 'I/O'
     elif log_type == 'download':
         out = 'Download'
-    elif log_type == 'system':
-        out = 'System'
     else:
         raise ValueError(f'Unknown log_type "{log_type}".')
     

@@ -1,4 +1,4 @@
-import sqlite3, src.config as config, polars as pl
+import sqlite3, src.config as config, polars as pl, src.utils.logger as logger
 from pathlib import Path
 from src.utils.timer import Timer
 from src.enums import *
@@ -169,42 +169,42 @@ def analyze_replay_data(file_path: str):
     # Get replay data
     timer.start()
     is_sql = Path(file_path).suffix == '.db'
-    print('[I/O] | Attempting to get game stats from file.')
+    logger.io('Attempting to get game stats from file')
     if is_sql:
         replay_df = _get_data_from_table(file_path, config.Tables.ReplayData, ['p1_chara_id', 'p2_chara_id', 'winner'])
     else:
         replay_df = pl.read_csv(file_path, columns=['p1_chara_id', 'p2_chara_id', 'winner'])
-    print(f'[I/O] | Succesfully got all game stats from file. [{timer.stop_get_elapsed_reset():,.2f}s]')
+    logger.io('Succesfully got all game stats from file', timer.stop_get_elapsed_reset())
 
     # Get win rates
     timer.start()
-    print('[I/O] | Attempting to calculate win rates.')
+    logger.io('Attempting to calculate win rates')
     stats = _calculate_raw_win_rate(replay_df)
     # Free up memory
     del replay_df
-    print(f'[I/O] | Succesfully calculated win rates. [{timer.stop_get_elapsed_reset():,.2f}s]')
+    logger.io('Succesfully calculated win rates', timer.stop_get_elapsed_reset())
     print(stats)
 
     timer.start()
     # FIXME: No need to do this twice, get all this stuff in the first read from file
-    print('[I/O] | Attempting to get all player stats from file.')
+    logger.io('Attempting to get all player stats from file')
     if is_sql:
         replay_df = _get_data_from_table(file_path, config.Tables.ReplayData, ['battle_at', 'p1_polaris_id', 'p1_chara_id', 'p1_name', 'p1_rank', 'p2_polaris_id', 'p2_chara_id', 'p2_name', 'p2_rank', 'winner'])
     else:
         replay_df = pl.read_csv(file_path, columns=['battle_at', 'p1_polaris_id', 'p1_chara_id', 'p1_name', 'p1_rank', 'p2_polaris_id', 'p2_chara_id', 'p2_name', 'p2_rank', 'winner'])
-    print(f'[I/O] | Succesfully got all player stats from file. [{timer.stop_get_elapsed_reset():,.2f}s]')
+    logger.io('Succesfully got all player stats from file', timer.stop_get_elapsed_reset())
 
     timer.start()
-    print('[I/O] | Attempting to consolidate player stats.')
+    logger.io('Attempting to consolidate player stats')
     player_stats = _get_unique_players_stats(replay_df)
     del replay_df
-    print(f'[I/O] | Succesfully consolidated player stats. [{timer.stop_get_elapsed_reset():,.2f}s]')
+    logger.io('Succesfully consolidated player stats', timer.stop_get_elapsed_reset())
     print(player_stats)
 
     timer.start()
-    print('[I/O] | Attempting to calculate rank percentiles and distribution.')
+    logger.io('Attempting to calculate rank percentiles and distribution')
     rank_percentiles_and_distribution = _get_rank_percentiles_and_distribution(player_stats)
-    print(f'[I/O] | Succesfully calculated rank percentiles and distribution. [{timer.stop_get_elapsed_reset():,.2f}s]')
+    logger.io('Succesfully calculated rank percentiles and distribution', timer.stop_get_elapsed_reset())
     print(rank_percentiles_and_distribution)
 
     return stats, player_stats, rank_percentiles_and_distribution
