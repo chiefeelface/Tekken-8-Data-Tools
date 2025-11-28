@@ -24,21 +24,21 @@ cd Tekken-8-Data-Tools
 2. **Create and activate a virtual environment**
 
 ```
-python -m venv .venv
+py -m venv .venv
 .\.venv\Scripts\activate
 ```
 
 3. **Install dependencies**
 
 ```
-pip install -r requirements.txt
+poetry install
 ```
 
 ## Usage
 Simply run the main file and follow the prompts
 
 ```
-python main.py
+py main.py
 ```
 
 If your terminal does not have a (.venv) in front of the prompt, you will need to activate the virtual environment before running the file
