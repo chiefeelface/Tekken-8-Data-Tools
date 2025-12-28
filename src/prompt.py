@@ -5,7 +5,7 @@ from src.utils.file_utils import write_results_to_excel
 
 def ask_with_interrupt_check(q: q.Question):
     answer = q.ask()
-    if answer:
+    if answer != None:
         return answer
     raise KeyboardInterrupt
 
@@ -42,9 +42,10 @@ def prompt():
             
             get_replay_data(start_date, end_date, file_type == config.SQLITE)
         case config.ANALYZE:
+            # Redundant but just in case
             if not has_replays():
-                print('No replay files found, exiting.')
-                return False
+                print('No replay files found.')
+                return True
             replay_data_file_path = ask_with_interrupt_check(q.select(
                 message='What file would you like to analyze',
                 choices=[ 
