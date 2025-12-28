@@ -12,12 +12,12 @@ def _calculate_raw_win_rate(replay_df: pl.DataFrame):
         'chara_id': [chara.value for chara in Characters],
         'chara_name': [chara.name.replace('_', ' ') for chara in Characters]
     })
-    replay_df = (
+    characters_df = (
         replay_df
         .join(chara_lookup.rename({"chara_id": "p1_chara_id", "chara_name": "p1_chara"}), on="p1_chara_id", how="left")
         .join(chara_lookup.rename({"chara_id": "p2_chara_id", "chara_name": "p2_chara"}), on="p2_chara_id", how="left")
     )
-    replay_df = replay_df.with_columns([
+    characters_df = characters_df.with_columns([
         pl
         .when(pl.col('winner') == 1)
         .then(pl.col('p1_chara'))
@@ -40,21 +40,21 @@ def _calculate_raw_win_rate(replay_df: pl.DataFrame):
         .alias('Tie2')
     ])
     wins = (
-        replay_df
+        characters_df
         .group_by('Winner')
         .agg(pl.count().alias('Wins'))
         .rename({'Winner': 'Character'})
         .select('Character', 'Wins')
     )
     losses = (
-        replay_df
+        characters_df
         .group_by('Loser')
         .agg(pl.count().alias('Losses'))
         .rename({'Loser': 'Character'})
         .select('Character', 'Losses')
     )
     ties = (
-        replay_df
+        characters_df
         .select(['Tie1', 'Tie2'])
         .unpivot(variable_name='Slot', value_name='Character')
         .drop_nulls()
@@ -62,8 +62,6 @@ def _calculate_raw_win_rate(replay_df: pl.DataFrame):
         .agg(pl.count().alias('Ties'))
         .select('Character', 'Ties')
     )
-    pl.Config.set_tbl_rows(40)
-    pl.Config.set_tbl_cols(40)
     picks = (
         wins
         .join(losses, on='Character', how='inner', coalesce=True)
@@ -219,33 +217,21 @@ def analyze_replay_data(file_path: str):
     is_sql = Path(file_path).suffix == '.db'
     logger.io('Attempting to get game stats from file')
     if is_sql:
-        replay_df = _get_data_from_table(file_path, config.Tables.ReplayData, ['p1_chara_id', 'p2_chara_id', 'winner'])
+        replay_df = _get_data_from_table(file_path, config.Tables.ReplayData, ['battle_at', 'p1_polaris_id', 'p1_chara_id', 'p1_name', 'p1_rank', 'p2_polaris_id', 'p2_chara_id', 'p2_name', 'p2_rank', 'winner'])
     else:
-        replay_df = pl.read_csv(file_path, columns=['p1_chara_id', 'p2_chara_id', 'winner'])
+        replay_df = pl.read_csv(file_path, columns=['battle_at', 'p1_polaris_id', 'p1_chara_id', 'p1_name', 'p1_rank', 'p2_polaris_id', 'p2_chara_id', 'p2_name', 'p2_rank', 'winner'])
     logger.io('Succesfully got all game stats from file', timer.stop_get_elapsed_reset())
 
     # Get win rates
     timer.start()
     logger.io('Attempting to calculate win rates')
     stats = _calculate_raw_win_rate(replay_df)
-    # Free up memory
-    del replay_df
     logger.io('Succesfully calculated win rates', timer.stop_get_elapsed_reset())
     print(stats)
 
     timer.start()
-    # FIXME: No need to do this twice, get all this stuff in the first read from file
-    logger.io('Attempting to get all player stats from file')
-    if is_sql:
-        replay_df = _get_data_from_table(file_path, config.Tables.ReplayData, ['battle_at', 'p1_polaris_id', 'p1_chara_id', 'p1_name', 'p1_rank', 'p2_polaris_id', 'p2_chara_id', 'p2_name', 'p2_rank', 'winner'])
-    else:
-        replay_df = pl.read_csv(file_path, columns=['battle_at', 'p1_polaris_id', 'p1_chara_id', 'p1_name', 'p1_rank', 'p2_polaris_id', 'p2_chara_id', 'p2_name', 'p2_rank', 'winner'])
-    logger.io('Succesfully got all player stats from file', timer.stop_get_elapsed_reset())
-
-    timer.start()
     logger.io('Attempting to consolidate player stats')
     player_stats = _get_unique_players_stats(replay_df)
-    del replay_df
     logger.io('Succesfully consolidated player stats', timer.stop_get_elapsed_reset())
     print(player_stats)
 
