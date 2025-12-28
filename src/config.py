@@ -17,6 +17,7 @@ HELP = 'Help'
 QUIT = 'Quit'
 SQLITE = 'SQLite Database'
 CSV = 'CSV'
+BACK = '← Back'
 
 class Tables:
     ReplayData = 'ReplayData'

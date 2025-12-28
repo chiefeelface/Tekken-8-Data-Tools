@@ -1,5 +1,6 @@
 # Dont include results in repo
 /downloaded_replays
+/results
 
 # Dont include hidden directories and pycache
 /.*
