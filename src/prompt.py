@@ -2,6 +2,7 @@ import src.config as config, questionary as q, datetime, os
 from src.get_replays import get_replay_data
 from src.analyze_replays import analyze_replay_data
 from src.utils.file_utils import write_results_to_excel
+from src.enums import Ranks
 
 def ask_with_interrupt_check(q: q.Question):
     answer = q.ask()
@@ -54,12 +55,14 @@ def prompt():
             ))
             if replay_data_file_path == config.BACK:
                 return True
-            stats, player_stats, rank_percentiles_and_distribution = analyze_replay_data(config.REPLAY_DIR + '/' + replay_data_file_path)
+            win_rates, player_stats, rank_percentiles_and_distribution, win_rates_by_rank = analyze_replay_data(config.REPLAY_DIR + '/' + replay_data_file_path)
             if ask_with_interrupt_check(q.confirm('Would you like to save the results to an excel file')):
                 write_results_to_excel(replay_data_file_path, [
-                        (stats, 'Character Stats',),
+                        (win_rates, 'Character Stats (CS)',),
                         (player_stats, 'Player Stats',),
                         (rank_percentiles_and_distribution, 'Rank Percentiles & Distribution',)
+                ] + [
+                    (df, 'CS ' + Ranks(rank).name.replace('_', ' ')) for rank, df in win_rates_by_rank.items()
                 ])
         case config.QUIT | None:
             return False

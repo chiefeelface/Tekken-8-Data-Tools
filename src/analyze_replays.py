@@ -7,7 +7,7 @@ def _get_data_from_table(file_path, table, columns=['*']):
     with sqlite3.connect(file_path) as connection:
         return pl.read_database(f'select {', '.join(columns)} from {table}', connection)
 
-def _calculate_raw_win_rate(replay_df: pl.DataFrame):
+def _calculate_character_win_rate(replay_df: pl.DataFrame):
     chara_lookup = pl.DataFrame({
         'chara_id': [chara.value for chara in Characters],
         'chara_name': [chara.name.replace('_', ' ') for chara in Characters]
@@ -209,6 +209,63 @@ def _get_rank_percentiles_and_distribution(player_stats_df: pl.DataFrame):
         'Players'
     ])
 
+def _calculate_character_win_rate_by_rank(replay_df: pl.DataFrame):
+    # Split all matches into 2 rows, one for winner and one for loser
+    # The columns should be chara, rank, winner
+    chara_lookup = pl.DataFrame({
+        'chara_id': [chara.value for chara in Characters],
+        'chara_name': [chara.name.replace('_', ' ') for chara in Characters]
+    })
+    rank_id_to_name = {rank.value: rank.name.replace('_', ' ') for rank in Ranks}
+    characters_df = (
+        replay_df
+        .join(chara_lookup.rename({"chara_id": "p1_chara_id", "chara_name": "p1_chara"}), on="p1_chara_id", how="left")
+        .join(chara_lookup.rename({"chara_id": "p2_chara_id", "chara_name": "p2_chara"}), on="p2_chara_id", how="left")
+    )
+    # The selects here treat ties as losses, so not quite accurate but should be fine
+    characters_df = (
+        pl.concat([
+            characters_df.select([
+                pl.col('p1_chara').alias('Character'),
+                pl.col('p1_rank').alias('Rank'),
+                pl.when(pl.col('winner') == 1).then(pl.lit('win'))
+                  .when(pl.col('winner') == 3).then(pl.lit('tie'))
+                  .otherwise(pl.lit('loss'))
+                .alias('Outcome')
+            ]),
+            characters_df.select([
+                pl.col('p2_chara').alias('Character'),
+                pl.col('p2_rank').alias('Rank'),
+                pl.when(pl.col('winner') == 2).then(pl.lit('win'))
+                  .when(pl.col('winner') == 3).then(pl.lit('tie'))
+                  .otherwise(pl.lit('loss'))
+                .alias('Outcome')
+            ])
+        ])
+        .group_by(['Character', 'Rank'])
+        .agg([
+            (pl.col('Outcome') == 'win').sum().alias('Wins'),
+            (pl.col('Outcome') == 'loss').sum().alias('Losses'),
+            (pl.col('Outcome') == 'tie').sum().alias('Ties'),
+            pl.len().alias('TotalGames')
+        ])
+        .with_columns(
+            (pl.col('Wins') / (pl.col('Wins') + pl.col('Losses'))).alias('RawWinRate')
+        )
+    )
+    return dict(sorted({
+        rank[0]: (
+            df
+            .sort('RawWinRate', descending=True)
+            .drop('Rank')
+        )
+        for rank, df in characters_df.partition_by(
+            'Rank',
+            as_dict=True,
+            maintain_order=True
+        ).items()
+    }.items()))
+
 def analyze_replay_data(file_path: str):
     timer = Timer()
 
@@ -222,12 +279,11 @@ def analyze_replay_data(file_path: str):
         replay_df = pl.read_csv(file_path, columns=['battle_at', 'p1_polaris_id', 'p1_chara_id', 'p1_name', 'p1_rank', 'p2_polaris_id', 'p2_chara_id', 'p2_name', 'p2_rank', 'winner'])
     logger.io('Succesfully got all game stats from file', timer.stop_get_elapsed_reset())
 
-    # Get win rates
     timer.start()
     logger.io('Attempting to calculate win rates')
-    stats = _calculate_raw_win_rate(replay_df)
+    win_rates = _calculate_character_win_rate(replay_df)
     logger.io('Succesfully calculated win rates', timer.stop_get_elapsed_reset())
-    print(stats)
+    print(win_rates)
 
     timer.start()
     logger.io('Attempting to consolidate player stats')
@@ -241,4 +297,9 @@ def analyze_replay_data(file_path: str):
     logger.io('Succesfully calculated rank percentiles and distribution', timer.stop_get_elapsed_reset())
     print(rank_percentiles_and_distribution)
 
-    return stats, player_stats, rank_percentiles_and_distribution
+    timer.start()
+    logger.io('Attempting to calculate win rates by rank')
+    win_rates_by_rank = _calculate_character_win_rate_by_rank(replay_df)
+    logger.io('Succesfully calculated win rates by rank', timer.stop_get_elapsed_reset())
+
+    return win_rates, player_stats, rank_percentiles_and_distribution, win_rates_by_rank
