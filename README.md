@@ -12,38 +12,34 @@ Basic data gathering and analysis tool for Tekken 8 replays.
 2. CPU that supports AVX
     - Most CPUs released after 2011 will support AVX
 
+3. The [UV](https://docs.astral.sh/uv/getting-started/installation/) package and project manager
+
 ### Installation
 
 1. **Clone the repo**
 
-```
+```bash
 git clone https://github.com/chiefeelface/Tekken-8-Data-Tools.git
 cd Tekken-8-Data-Tools
 ```
 
-2. **Create and activate a virtual environment**
+2. **Install dependencies and activate the virtual environment**
 
-```
-py -m venv .venv
+```bash
+uv sync
 .\.venv\Scripts\activate
-```
-
-3. **Install dependencies**
-
-```
-poetry install
 ```
 
 ## Usage
 Simply run the main file and follow the prompts
 
-```
+```bash
 py main.py
 ```
 
 If your terminal does not have a (.venv) in front of the prompt, you will need to activate the virtual environment before running the file
 
-```
+```bash
 .\.venv\Scripts\activate
 ```
 
