@@ -216,7 +216,6 @@ def _calculate_character_win_rate_by_rank(replay_df: pl.DataFrame):
         'chara_id': [chara.value for chara in Characters],
         'chara_name': [chara.name.replace('_', ' ') for chara in Characters]
     })
-    rank_id_to_name = {rank.value: rank.name.replace('_', ' ') for rank in Ranks}
     characters_df = (
         replay_df
         .join(chara_lookup.rename({"chara_id": "p1_chara_id", "chara_name": "p1_chara"}), on="p1_chara_id", how="left")
@@ -253,11 +252,27 @@ def _calculate_character_win_rate_by_rank(replay_df: pl.DataFrame):
             (pl.col('Wins') / (pl.col('Wins') + pl.col('Losses'))).alias('RawWinRate')
         )
     )
+    # To get pick rate, doesn't work when done in the with_columns above so have to do it explicitly like this
+    rank_totals = (
+        characters_df
+        .group_by('Rank')
+        .agg(
+            pl.sum('TotalGames').alias('RankTotalGames')
+        )
+    )
+    characters_df = (
+        characters_df
+        .join(rank_totals, on='Rank')
+        .with_columns(
+            (pl.col('TotalGames') / pl.col('RankTotalGames')).alias('PickRate')
+        )
+    )
+
     return dict(sorted({
         rank[0]: (
             df
             .sort('RawWinRate', descending=True)
-            .drop('Rank')
+            .drop('Rank', 'RankTotalGames')
         )
         for rank, df in characters_df.partition_by(
             'Rank',
@@ -301,5 +316,6 @@ def analyze_replay_data(file_path: str):
     logger.io('Attempting to calculate win rates by rank')
     win_rates_by_rank = _calculate_character_win_rate_by_rank(replay_df)
     logger.io('Succesfully calculated win rates by rank', timer.stop_get_elapsed_reset())
+    print(win_rates_by_rank[0])
 
     return win_rates, player_stats, rank_percentiles_and_distribution, win_rates_by_rank
